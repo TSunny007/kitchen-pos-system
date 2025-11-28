@@ -1,0 +1,6 @@
+# How to manually add and apply a migration
+
+npx supabase migration new add_campaigns_table
+npx supabase login 
+npx supabase link --project-ref fcijifkftzitkyuobese
+npx supabase db push
