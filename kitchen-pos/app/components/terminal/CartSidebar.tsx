@@ -11,6 +11,8 @@ interface CartSidebarProps {
   onClearCart: () => void;
   onPlaceOrder: () => void;
   total: number;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export default function CartSidebar({
@@ -22,6 +24,8 @@ export default function CartSidebar({
   onClearCart,
   onPlaceOrder,
   total,
+  isOpen = false,
+  onClose,
 }: CartSidebarProps) {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -40,14 +44,48 @@ export default function CartSidebar({
   };
 
   return (
-    <aside className="flex w-96 flex-col border-l border-outline-variant bg-surface-container-lowest">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-outline-variant px-6 py-4">
-        <h2 className="text-lg font-medium text-on-surface">Current Order</h2>
-        {cartItems.length > 0 && (
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+      
+      {/* Sidebar - hidden on mobile unless open */}
+      <aside
+        className={`fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-outline-variant bg-surface-container-lowest transition-transform duration-300 lg:static lg:z-auto lg:w-96 lg:max-w-none lg:translate-x-0 ${
+          isOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3 sm:px-6 sm:py-4">
+          {/* Mobile close button */}
           <button
-            onClick={onClearCart}
-            className="text-sm text-error hover:underline"
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high lg:hidden"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+          <h2 className="text-lg font-medium text-on-surface">Current Order</h2>
+          {cartItems.length > 0 && (
+            <button
+              onClick={onClearCart}
+              className="text-sm text-error hover:underline"
           >
             Clear
           </button>
@@ -203,7 +241,10 @@ export default function CartSidebar({
           </span>
         </div>
         <button
-          onClick={onPlaceOrder}
+          onClick={() => {
+            onPlaceOrder();
+            onClose?.();
+          }}
           disabled={cartItems.length === 0 || !customerName.trim()}
           className="w-full rounded-full bg-primary py-4 text-base font-medium text-on-primary transition-all hover:shadow-[var(--md-elevation-1)] disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -211,5 +252,6 @@ export default function CartSidebar({
         </button>
       </div>
     </aside>
+    </>
   );
 }

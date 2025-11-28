@@ -47,6 +47,7 @@ export default function TerminalPage() {
   const [customerName, setCustomerName] = useState("");
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Filter items by category
   const filteredItems = useMemo(() => {
@@ -145,9 +146,9 @@ export default function TerminalPage() {
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Bar with Campaign Selector */}
-        <header className="flex items-center justify-between border-b border-outline-variant bg-surface-container-low px-6 py-4">
-          <h1 className="text-2xl font-medium text-on-surface">{process.env.NEXT_PUBLIC_ORG_NAME} Terminal</h1>
-          <div className="flex items-center gap-4">
+        <header className="flex items-center justify-between border-b border-outline-variant bg-surface-container-low px-3 py-3 sm:px-6 sm:py-4">
+          <h1 className="text-lg font-medium text-on-surface sm:text-2xl">{process.env.NEXT_PUBLIC_ORG_NAME || "Kitchen"}</h1>
+          <div className="flex items-center gap-2 sm:gap-4">
             <ThemeToggle />
             <CampaignSelector
               campaigns={mockCampaigns}
@@ -165,12 +166,38 @@ export default function TerminalPage() {
         />
 
         {/* Items Grid */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-3 pb-24 sm:p-6 sm:pb-6">
           <ItemGrid items={filteredItems} onItemClick={handleItemClick} />
         </main>
       </div>
 
-      {/* Cart Sidebar */}
+      {/* Mobile Cart FAB */}
+      <button
+        onClick={() => setIsCartOpen(true)}
+        className="fixed bottom-6 right-6 z-40 flex h-14 items-center gap-2 rounded-full bg-primary px-5 text-on-primary shadow-[var(--md-elevation-3)] transition-transform active:scale-95 lg:hidden"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+          />
+        </svg>
+        {cartItems.length > 0 && (
+          <span className="font-medium">
+            {cartItems.length} · ${calculateTotal().toFixed(2)}
+          </span>
+        )}
+      </button>
+
+      {/* Cart Sidebar - Desktop always visible, Mobile slide-out */}
       <CartSidebar
         cartItems={cartItems}
         customerName={customerName}
@@ -180,6 +207,8 @@ export default function TerminalPage() {
         onClearCart={handleClearCart}
         onPlaceOrder={handlePlaceOrder}
         total={calculateTotal()}
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
       />
 
       {/* Item Detail Modal */}

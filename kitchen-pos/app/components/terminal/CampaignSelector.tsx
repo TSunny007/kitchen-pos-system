@@ -35,12 +35,12 @@ export default function CampaignSelector({
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-3 rounded-lg bg-surface-container px-4 py-3 transition-all hover:bg-surface-container-high"
+        className="flex items-center gap-2 rounded-lg bg-surface-container px-2 py-2 transition-all hover:bg-surface-container-high sm:gap-3 sm:px-4 sm:py-3"
       >
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-container">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-container sm:h-10 sm:w-10">
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5 text-on-primary-container"
+            className="h-4 w-4 text-on-primary-container sm:h-5 sm:w-5"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -53,15 +53,15 @@ export default function CampaignSelector({
             />
           </svg>
         </div>
-        <div className="text-left">
+        <div className="hidden text-left sm:block">
           <p className="text-xs text-on-surface-variant">Campaign</p>
-          <p className="font-medium text-on-surface">
+          <p className="max-w-[150px] truncate font-medium text-on-surface">
             {selectedCampaign?.name || "Select Campaign"}
           </p>
         </div>
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className={`ml-2 h-5 w-5 text-on-surface-variant transition-transform ${
+          className={`h-4 w-4 text-on-surface-variant transition-transform sm:ml-2 sm:h-5 sm:w-5 ${
             isOpen ? "rotate-180" : ""
           }`}
           fill="none"

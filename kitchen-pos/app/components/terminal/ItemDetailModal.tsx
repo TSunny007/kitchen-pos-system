@@ -71,28 +71,50 @@ export default function ItemDetailModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50"
         onClick={handleClose}
       />
 
-      {/* Modal */}
-      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl bg-surface-container-lowest shadow-[var(--md-elevation-3)]">
-        {/* Header with Image */}
-        <div className="relative aspect-video w-full bg-surface-container">
-          {item.image_url ? (
-            <img
-              src={item.image_url}
-              alt={item.name}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
+      {/* Modal - full width on mobile, centered card on desktop */}
+      <div className="relative z-10 max-h-[90vh] w-full overflow-hidden rounded-t-3xl bg-surface-container-lowest shadow-[var(--md-elevation-3)] sm:max-w-md sm:rounded-3xl">
+        <div className="max-h-[90vh] overflow-y-auto">
+          {/* Header with Image */}
+          <div className="relative aspect-video w-full bg-surface-container sm:aspect-video">
+            {item.image_url ? (
+              <img
+                src={item.image_url}
+                alt={item.name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-16 w-16 text-outline-variant sm:h-20 sm:w-20"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                  />
+                </svg>
+              </div>
+            )}
+            {/* Close button */}
+            <button
+              onClick={handleClose}
+              className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-surface-container-highest/80 text-on-surface backdrop-blur-sm transition-colors hover:bg-surface-container-highest sm:right-4 sm:top-4"
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-20 w-20 text-outline-variant"
+                className="h-6 w-6"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -100,33 +122,12 @@ export default function ItemDetailModal({
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
                 />
               </svg>
-            </div>
-          )}
-          {/* Close button */}
-          <button
-            onClick={handleClose}
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-surface-container-highest/80 text-on-surface backdrop-blur-sm transition-colors hover:bg-surface-container-highest"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+            </button>
+          </div>
 
         {/* Content */}
         <div className="p-6">
@@ -252,6 +253,7 @@ export default function ItemDetailModal({
               {formatPrice(calculateTotal())}
             </span>
           </button>
+        </div>
         </div>
       </div>
     </div>
