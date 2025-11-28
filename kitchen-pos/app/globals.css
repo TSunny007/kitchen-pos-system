@@ -1,8 +1,51 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Custom Color Palette - Pistachio Green Theme */
+  --md-primary: #7CB474;           /* Pistachio green */
+  --md-on-primary: #FFFFFF;
+  --md-primary-container: #D4E8D1; /* Light pistachio */
+  --md-on-primary-container: #1A3D16;
+  
+  --md-secondary: #8B8578;         /* Warm taupe */
+  --md-on-secondary: #FFFFFF;
+  --md-secondary-container: #F5F0E8; /* Faint sand */
+  --md-on-secondary-container: #3D3A33;
+  
+  --md-tertiary: #A69F8D;          /* Warm gray-sand */
+  --md-on-tertiary: #FFFFFF;
+  --md-tertiary-container: #EDE8DC;
+  --md-on-tertiary-container: #3A3730;
+  
+  --md-surface: #FDFCF9;           /* Off-white */
+  --md-surface-dim: #E8E4DB;       /* Dimmed sand */
+  --md-surface-bright: #FFFFFF;
+  --md-surface-container-lowest: #FFFFFF;
+  --md-surface-container-low: #FBF9F4;    /* Very light sand */
+  --md-surface-container: #F7F4ED;         /* Light sand */
+  --md-surface-container-high: #F2EEE5;    /* Sand */
+  --md-surface-container-highest: #EDE8DC; /* Darker sand */
+  
+  --md-on-surface: #2C2A25;        /* Dark warm brown */
+  --md-on-surface-variant: #5C5850;
+  --md-outline: #9C9789;
+  --md-outline-variant: #D4CFC3;
+  
+  --md-error: #BA1A1A;
+  --md-on-error: #FFFFFF;
+  --md-error-container: #FFDAD6;
+  --md-on-error-container: #410002;
+  
+  --md-success: #5A8A53;           /* Muted pistachio for success */
+  --md-on-success: #FFFFFF;
+  
+  /* Elevation shadows - softer for light theme */
+  --md-elevation-1: 0 1px 3px rgba(44, 42, 37, 0.08), 0 1px 2px rgba(44, 42, 37, 0.12);
+  --md-elevation-2: 0 2px 6px rgba(44, 42, 37, 0.1), 0 1px 3px rgba(44, 42, 37, 0.08);
+  --md-elevation-3: 0 4px 12px rgba(44, 42, 37, 0.12), 0 2px 4px rgba(44, 42, 37, 0.08);
+  
+  --background: var(--md-surface);
+  --foreground: var(--md-on-surface);
 }
 
 @theme inline {
@@ -10,17 +53,206 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* Material Design colors for Tailwind */
+  --color-primary: var(--md-primary);
+  --color-on-primary: var(--md-on-primary);
+  --color-primary-container: var(--md-primary-container);
+  --color-on-primary-container: var(--md-on-primary-container);
+  
+  --color-secondary: var(--md-secondary);
+  --color-on-secondary: var(--md-on-secondary);
+  --color-secondary-container: var(--md-secondary-container);
+  --color-on-secondary-container: var(--md-on-secondary-container);
+  
+  --color-surface: var(--md-surface);
+  --color-surface-dim: var(--md-surface-dim);
+  --color-surface-container: var(--md-surface-container);
+  --color-surface-container-lowest: var(--md-surface-container-lowest);
+  --color-surface-container-low: var(--md-surface-container-low);
+  --color-surface-container-high: var(--md-surface-container-high);
+  --color-surface-container-highest: var(--md-surface-container-highest);
+  
+  --color-on-surface: var(--md-on-surface);
+  --color-on-surface-variant: var(--md-on-surface-variant);
+  --color-outline: var(--md-outline);
+  --color-outline-variant: var(--md-outline-variant);
+  
+  --color-error: var(--md-error);
+  --color-success: var(--md-success);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not(.light):not(.dark) {
+    /* Dark Theme - Pistachio Green (system preference fallback) */
+    --md-primary: #A3D49A;           /* Lighter pistachio for dark */
+    --md-on-primary: #1A3D16;
+    --md-primary-container: #2D5427;
+    --md-on-primary-container: #D4E8D1;
+    
+    --md-secondary: #D4CFC3;
+    --md-on-secondary: #3D3A33;
+    --md-secondary-container: #4A4740;
+    --md-on-secondary-container: #F5F0E8;
+    
+    --md-tertiary: #D4CFC3;
+    --md-on-tertiary: #3A3730;
+    --md-tertiary-container: #514D45;
+    --md-on-tertiary-container: #EDE8DC;
+    
+    --md-surface: #1A1917;
+    --md-surface-dim: #1A1917;
+    --md-surface-bright: #403E39;
+    --md-surface-container-lowest: #131210;
+    --md-surface-container-low: #22211E;
+    --md-surface-container: #272622;
+    --md-surface-container-high: #312F2B;
+    --md-surface-container-highest: #3C3A35;
+    
+    --md-on-surface: #E8E4DB;
+    --md-on-surface-variant: #CCC7BB;
+    --md-outline: #959086;
+    --md-outline-variant: #4A4740;
+    
+    --md-error: #FFB4AB;
+    --md-on-error: #690005;
+    --md-error-container: #93000A;
+    --md-on-error-container: #FFDAD6;
+    
+    --md-success: #A3D49A;
+    --md-on-success: #1A3D16;
+    
+    --background: var(--md-surface);
+    --foreground: var(--md-on-surface);
   }
+}
+
+/* Manual dark mode class */
+:root.dark {
+  /* Dark Theme - Pistachio Green */
+  --md-primary: #A3D49A;           /* Lighter pistachio for dark */
+  --md-on-primary: #1A3D16;
+  --md-primary-container: #2D5427;
+  --md-on-primary-container: #D4E8D1;
+  
+  --md-secondary: #D4CFC3;
+  --md-on-secondary: #3D3A33;
+  --md-secondary-container: #4A4740;
+  --md-on-secondary-container: #F5F0E8;
+  
+  --md-tertiary: #D4CFC3;
+  --md-on-tertiary: #3A3730;
+  --md-tertiary-container: #514D45;
+  --md-on-tertiary-container: #EDE8DC;
+  
+  --md-surface: #1A1917;
+  --md-surface-dim: #1A1917;
+  --md-surface-bright: #403E39;
+  --md-surface-container-lowest: #131210;
+  --md-surface-container-low: #22211E;
+  --md-surface-container: #272622;
+  --md-surface-container-high: #312F2B;
+  --md-surface-container-highest: #3C3A35;
+  
+  --md-on-surface: #E8E4DB;
+  --md-on-surface-variant: #CCC7BB;
+  --md-outline: #959086;
+  --md-outline-variant: #4A4740;
+  
+  --md-error: #FFB4AB;
+  --md-on-error: #690005;
+  --md-error-container: #93000A;
+  --md-on-error-container: #FFDAD6;
+  
+  --md-success: #A3D49A;
+  --md-on-success: #1A3D16;
+  
+  --background: var(--md-surface);
+  --foreground: var(--md-on-surface);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Material Design button styles */
+.md-button {
+  border-radius: 20px;
+  padding: 10px 24px;
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: 0.1px;
+  transition: all 0.2s ease;
+}
+
+.md-button-filled {
+  background-color: var(--md-primary);
+  color: var(--md-on-primary);
+}
+
+.md-button-filled:hover {
+  box-shadow: var(--md-elevation-1);
+}
+
+.md-button-tonal {
+  background-color: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+.md-button-outlined {
+  background-color: transparent;
+  border: 1px solid var(--md-outline);
+  color: var(--md-primary);
+}
+
+/* Material Design card styles */
+.md-card {
+  background-color: var(--md-surface-container-low);
+  border-radius: 12px;
+  transition: box-shadow 0.2s ease;
+}
+
+.md-card-elevated {
+  box-shadow: var(--md-elevation-1);
+}
+
+.md-card:hover {
+  box-shadow: var(--md-elevation-2);
+}
+
+/* Material Design input styles */
+.md-input {
+  background-color: transparent;
+  border: 1px solid var(--md-outline);
+  border-radius: 4px;
+  padding: 16px;
+  font-size: 16px;
+  transition: border-color 0.2s ease;
+}
+
+.md-input:focus {
+  outline: none;
+  border-color: var(--md-primary);
+  border-width: 2px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--md-surface-container);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--md-outline-variant);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--md-outline);
 }
