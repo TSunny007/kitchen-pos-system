@@ -386,9 +386,9 @@ export default function KitchenPage() {
       </div>
 
       {/* Main Content - Order Columns by Item Status */}
-      <main className="flex flex-1 gap-4 overflow-hidden p-4">
+      <main className="flex flex-1 gap-4 overflow-x-auto p-4">
         {/* New Items Column */}
-        <div className="flex flex-1 flex-col rounded-xl bg-tertiary-container/30">
+        <div className="flex min-w-[300px] flex-1 flex-col rounded-xl bg-tertiary-container/30 sm:min-w-[320px]">
           <div className="flex items-center justify-between border-b border-tertiary/20 px-4 py-3">
             <h2 className="font-semibold text-on-surface">New</h2>
             <span className="rounded-full bg-tertiary px-2.5 py-0.5 text-sm font-medium text-on-tertiary">
@@ -414,7 +414,7 @@ export default function KitchenPage() {
         </div>
 
         {/* In Progress Column */}
-        <div className="flex flex-1 flex-col rounded-xl bg-secondary-container/30">
+        <div className="flex min-w-[300px] flex-1 flex-col rounded-xl bg-secondary-container/30 sm:min-w-[320px]">
           <div className="flex items-center justify-between border-b border-secondary/20 px-4 py-3">
             <h2 className="font-semibold text-on-surface">Preparing</h2>
             <span className="rounded-full bg-secondary px-2.5 py-0.5 text-sm font-medium text-on-secondary">
@@ -440,7 +440,7 @@ export default function KitchenPage() {
         </div>
 
         {/* Ready Column */}
-        <div className="flex flex-1 flex-col rounded-xl bg-primary-container/30">
+        <div className="flex min-w-[300px] flex-1 flex-col rounded-xl bg-primary-container/30 sm:min-w-[320px]">
           <div className="flex items-center justify-between border-b border-primary/20 px-4 py-3">
             <h2 className="font-semibold text-on-surface">Ready</h2>
             <span className="rounded-full bg-primary px-2.5 py-0.5 text-sm font-medium text-on-primary">
