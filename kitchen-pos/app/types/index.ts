@@ -50,7 +50,7 @@ export interface ItemModifier {
 }
 
 export type OrderStatus = 'new' | 'in_progress' | 'ready' | 'picked_up' | 'cancelled';
-export type OrderItemStatus = 'new' | 'in_progress' | 'done' | 'cancelled';
+export type OrderItemStatus = 'new' | 'in_progress' | 'done' | 'picked_up' | 'cancelled';
 
 export interface Order {
   id: number;
