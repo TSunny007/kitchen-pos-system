@@ -347,11 +347,6 @@ export default function KitchenOrderCard({
               {filteredItems.filter(i => i.status === "done").length}/{filteredItems.length} ready
             </span>
           )}
-          {aggregateStatus === "done" && (
-            <span className="rounded-full bg-primary-container px-5 py-2 text-sm font-semibold text-on-primary-container">
-              ✓ Ready for Pickup
-            </span>
-          )}
         </div>
       )}
     </div>

@@ -25,6 +25,7 @@ export interface Item {
   image_url: string | null;
   base_price: number;
   is_active: boolean;
+  no_prep_needed: boolean; // When true, items are created as 'done' (ready) immediately
   created_at: string;
   updated_at: string;
   // Joined fields

@@ -18,6 +18,7 @@ interface AddItemModalProps {
     category_id: number;
     image_url: string | null;
     modifierIds: number[];
+    no_prep_needed: boolean;
   }) => Promise<void>;
   onCreateCategory?: (name: string) => Promise<Category | null>;
   onDeleteCategory?: (categoryId: number) => Promise<boolean>;
@@ -41,6 +42,7 @@ export default function AddItemModal({
   const [imageUrl, setImageUrl] = useState("");
   const [categoryId, setCategoryId] = useState<number | undefined>(selectedCategoryId);
   const [selectedModifierIds, setSelectedModifierIds] = useState<number[]>([]);
+  const [noPrepNeeded, setNoPrepNeeded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,6 +86,7 @@ export default function AddItemModal({
         category_id: categoryId,
         image_url: imageUrl.trim() || null,
         modifierIds: selectedModifierIds,
+        no_prep_needed: noPrepNeeded,
       });
       // Reset form
       setName("");
@@ -92,6 +95,7 @@ export default function AddItemModal({
       setImageUrl("");
       setCategoryId(selectedCategoryId);
       setSelectedModifierIds([]);
+      setNoPrepNeeded(false);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create item");
@@ -107,6 +111,7 @@ export default function AddItemModal({
     setImageUrl("");
     setCategoryId(selectedCategoryId);
     setSelectedModifierIds([]);
+    setNoPrepNeeded(false);
     setError(null);
     onClose();
   };
@@ -246,6 +251,48 @@ export default function AddItemModal({
               onToggleModifier={handleToggleModifier}
               onCreateModifier={onCreateModifier}
             />
+          </div>
+
+          {/* No Prep Needed Toggle */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setNoPrepNeeded(!noPrepNeeded)}
+              className={`flex w-full items-center justify-between rounded-xl border-2 px-4 py-3 text-left transition-all ${
+                noPrepNeeded
+                  ? "border-primary bg-primary-container"
+                  : "border-outline-variant bg-surface-container hover:border-outline hover:bg-surface-container-high"
+              }`}
+            >
+              <div>
+                <p className={`font-medium ${noPrepNeeded ? "text-on-primary-container" : "text-on-surface"}`}>
+                  Ready immediately
+                </p>
+                <p className={`text-sm ${noPrepNeeded ? "text-on-primary-container/70" : "text-on-surface-variant"}`}>
+                  Skip kitchen preparation (e.g., packaged items)
+                </p>
+              </div>
+              <div
+                className={`flex h-6 w-6 items-center justify-center rounded-md transition-all ${
+                  noPrepNeeded
+                    ? "bg-primary text-on-primary"
+                    : "border-2 border-outline-variant bg-surface"
+                }`}
+              >
+                {noPrepNeeded && (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={3}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
+            </button>
           </div>
 
           {/* Error */}

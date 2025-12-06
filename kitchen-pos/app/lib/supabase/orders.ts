@@ -55,12 +55,13 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
   }
 
   // 2. Create order items
+  // Items with no_prep_needed=true are created with status 'done' (ready immediately)
   const orderItemsToInsert = items.map((cartItem) => ({
     order_id: order.id,
     item_id: cartItem.item.id,
     quantity: cartItem.quantity,
     notes: cartItem.notes || null,
-    status: "new" as OrderItemStatus,
+    status: (cartItem.item.no_prep_needed ? "done" : "new") as OrderItemStatus,
   }));
 
   const { data: orderItems, error: itemsError } = await supabase
@@ -107,10 +108,11 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
   }
 
   // 4. Create initial status events for each order item
-  const statusEventsToInsert = orderItems.map((orderItem) => ({
+  // Use the actual status that was set (done for no_prep_needed items, new otherwise)
+  const statusEventsToInsert = orderItems.map((orderItem, index) => ({
     order_item_id: orderItem.id,
     old_status: null,
-    new_status: "new",
+    new_status: items[index].item.no_prep_needed ? "done" : "new",
   }));
 
   const { error: statusError } = await supabase

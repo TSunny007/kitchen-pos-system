@@ -527,12 +527,14 @@ export default function TerminalPage() {
     base_price: number;
     category_id: number;
     image_url?: string | null;
+    no_prep_needed?: boolean;
   }) => {
     try {
       const newItem = await createItem({
         ...itemData,
         image_url: itemData.image_url ?? null,
         is_active: true,
+        no_prep_needed: itemData.no_prep_needed ?? false,
       });
       setItems((prev) => [...prev, newItem]);
       return newItem;
@@ -833,6 +835,7 @@ export default function TerminalPage() {
             base_price: itemData.base_price,
             category_id: itemData.category_id,
             image_url: itemData.image_url,
+            no_prep_needed: itemData.no_prep_needed,
           });
           // Link modifiers to the new item
           if (itemData.modifierIds.length > 0 && newItem) {

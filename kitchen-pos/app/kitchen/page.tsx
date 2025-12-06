@@ -206,7 +206,7 @@ export default function KitchenPage() {
   }, [orders, selectedCategory]);
 
   // Group orders by the aggregate status of items in the selected category
-  // If no category selected, group by overall order status
+  // If no category selected, group by aggregate status of ALL items (not order status)
   const ordersByItemStatus = useMemo(() => {
     const grouped: Record<"new" | "in_progress" | "done", Order[]> = {
       new: [],
@@ -215,27 +215,19 @@ export default function KitchenPage() {
     };
 
     filteredOrders.forEach((order) => {
-      if (!selectedCategory) {
-        // No category filter - use overall order status
-        if (order.status === "new") {
-          grouped.new.push(order);
-        } else if (order.status === "in_progress") {
-          grouped.in_progress.push(order);
-        } else if (order.status === "ready") {
-          grouped.done.push(order);
-        }
-        return;
-      }
+      // Get items to consider - all items if no category, or just category items
+      const relevantItems = selectedCategory
+        ? order.order_items?.filter(
+            (item) => item.item?.category_id === selectedCategory.id
+          ) || []
+        : order.order_items?.filter(
+            (item) => item.status !== "picked_up" && item.status !== "cancelled"
+          ) || [];
 
-      // Filter items to only those in the selected category
-      const categoryItems = order.order_items?.filter(
-        (item) => item.item?.category_id === selectedCategory.id
-      ) || [];
-
-      if (categoryItems.length === 0) return;
+      if (relevantItems.length === 0) return;
 
       // Compute aggregate status for these items
-      const statuses = categoryItems.map((item) => item.status);
+      const statuses = relevantItems.map((item) => item.status);
       const allNew = statuses.every((s) => s === "new");
       const allDone = statuses.every((s) => s === "done");
       const anyInProgress = statuses.some((s) => s === "in_progress");
