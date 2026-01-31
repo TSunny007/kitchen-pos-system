@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { Order, OrderItem, OrderStatus, OrderItemStatus } from "../../types";
+import { Order, OrderItem, OrderStatus } from "../../types";
 import OrderCard from "./OrderCard";
 
 interface RecentOrdersProps {
@@ -10,7 +10,6 @@ interface RecentOrdersProps {
   hasMore: boolean;
   onLoadMore: () => void;
   onStatusChange?: (orderId: number, newStatus: OrderStatus) => void;
-  onItemStatusChange?: (orderItemId: number, newStatus: OrderItemStatus) => void;
   onRefresh?: () => void;
   onEditItem?: (orderItem: OrderItem) => void;
   onDeleteItem?: (orderItemId: number) => void;
@@ -23,7 +22,6 @@ export default function RecentOrders({
   hasMore,
   onLoadMore,
   onStatusChange,
-  onItemStatusChange,
   onRefresh,
   onEditItem,
   onDeleteItem,
@@ -115,7 +113,6 @@ export default function RecentOrders({
             key={order.id}
             order={order}
             onStatusChange={onStatusChange}
-            onItemStatusChange={onItemStatusChange}
             onEditItem={onEditItem}
             onDeleteItem={onDeleteItem}
             showActions={!!onStatusChange}

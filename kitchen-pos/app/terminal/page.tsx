@@ -2,28 +2,30 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Campaign, Category, Item, CartItem, Modifier, Order, OrderItem, OrderStatus, OrderItemStatus } from "../types";
+import { Campaign, Category, Item, CartItem, Modifier, Order, OrderItem, OrderStatus } from "../types";
 import CampaignSelector from "../components/terminal/CampaignSelector";
 import CategoryTabs from "../components/terminal/CategoryTabs";
 import ItemGrid from "../components/terminal/ItemGrid";
 import CartSidebar from "../components/terminal/CartSidebar";
 import ItemDetailModal from "../components/terminal/ItemDetailModal";
 import OrderItemEditModal from "../components/terminal/OrderItemEditModal";
+import ManageCampaignItemsModal from "../components/terminal/ManageCampaignItemsModal";
 import ThemeToggle from "../components/ThemeToggle";
 import { useAuth } from "../providers/AuthProvider";
 import {
   getCampaigns,
   getCategories,
   getItems,
+  getItemsForCampaign,
+  getCampaignItems,
+  linkItemToCampaign,
+  unlinkItemFromCampaign,
   getModifiersForItem,
   getModifiers,
   createOrder,
-  getReadyOrders,
   getRecentOrders,
-  subscribeToReadyOrders,
   subscribeToOrders,
   updateOrderStatus,
-  updateOrderItemStatus,
   updateOrderItem,
   deleteOrderItem,
   getOrderById,
@@ -47,7 +49,9 @@ export default function TerminalPage() {
   // Data from Supabase
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<Item[]>([]); // Items for current campaign
+  const [allItems, setAllItems] = useState<Item[]>([]); // All items for item management
+  const [campaignItemIds, setCampaignItemIds] = useState<Set<number>>(new Set()); // Item IDs linked to current campaign
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,8 +65,7 @@ export default function TerminalPage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [itemModifiers, setItemModifiers] = useState<Modifier[]>([]);
 
-  // Ready orders for pickup announcements
-  const [readyOrders, setReadyOrders] = useState<Order[]>([]);
+  // Order confirmation
   const [lastOrderConfirmation, setLastOrderConfirmation] = useState<{
     id: number;
     customerName: string;
@@ -81,6 +84,9 @@ export default function TerminalPage() {
 
   // Add Item modal state
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+
+  // Manage Campaign Items modal state
+  const [isManageItemsModalOpen, setIsManageItemsModalOpen] = useState(false);
 
   // All available modifiers (for linking to items)
   const [allModifiers, setAllModifiers] = useState<Modifier[]>([]);
@@ -124,14 +130,21 @@ export default function TerminalPage() {
 
     async function loadMenuData() {
       try {
-        const [categoriesData, itemsData, modifiersData] = await Promise.all([
+        const [categoriesData, allItemsData, campaignItemsData, modifiersData] = await Promise.all([
           getCategories(),
-          getItems(),
+          getItems(), // All items for item management
+          getItemsForCampaign(selectedCampaign!.id), // Items for this campaign
           getModifiers(),
         ]);
 
+        // Also get the campaign_items to know which items are linked
+        const campaignItemLinks = await getCampaignItems(selectedCampaign!.id);
+        const linkedItemIds = new Set(campaignItemLinks.map(ci => ci.item_id));
+
         setCategories(categoriesData);
-        setItems(itemsData);
+        setAllItems(allItemsData);
+        setItems(campaignItemsData);
+        setCampaignItemIds(linkedItemIds);
         setAllModifiers(modifiersData);
       } catch (err) {
         console.error("Error loading menu data:", err);
@@ -141,37 +154,6 @@ export default function TerminalPage() {
 
     loadMenuData();
   }, [user, selectedCampaign]);
-
-  // Load ready orders when campaign changes
-  useEffect(() => {
-    if (!selectedCampaign || !user) return;
-
-    async function loadReadyOrders() {
-      try {
-        const orders = await getReadyOrders(selectedCampaign!.id);
-        setReadyOrders(orders);
-      } catch (err) {
-        console.error("Error loading ready orders:", err);
-      }
-    }
-
-    loadReadyOrders();
-
-    // Subscribe to real-time updates for ready orders
-    const unsubscribe = subscribeToReadyOrders(selectedCampaign.id, (order) => {
-      setReadyOrders((prev) => {
-        // Add to list if not already present
-        if (!prev.find((o) => o.id === order.id)) {
-          return [...prev, order];
-        }
-        return prev;
-      });
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [selectedCampaign]);
 
   // Filter items by category
   const filteredItems = useMemo(() => {
@@ -284,11 +266,6 @@ export default function TerminalPage() {
     }
   };
 
-  // Dismiss a ready order (mark as called out)
-  const handleDismissReadyOrder = (orderId: number) => {
-    setReadyOrders((prev) => prev.filter((o) => o.id !== orderId));
-  };
-
   // Recent orders handlers
   const loadRecentOrders = useCallback(async (reset = false) => {
     if (!selectedCampaign) return;
@@ -338,41 +315,6 @@ export default function TerminalPage() {
       console.error("Error updating order status:", err);
     }
   }, []);
-
-  // Handle individual item status change (for marking items as picked up)
-  const handleItemStatusChange = useCallback(async (orderItemId: number, newStatus: OrderItemStatus) => {
-    try {
-      // Optimistic update
-      setRecentOrders((prev) =>
-        prev.map((order) => ({
-          ...order,
-          order_items: order.order_items?.map((item) =>
-            item.id === orderItemId ? { ...item, status: newStatus } : item
-          ),
-        }))
-      );
-
-      // Persist to database (this will also update order status automatically)
-      await updateOrderItemStatus(orderItemId, newStatus);
-      
-      // Refresh to get updated order status
-      const orderWithItem = recentOrders.find((o) =>
-        o.order_items?.some((item) => item.id === orderItemId)
-      );
-      if (orderWithItem) {
-        const updatedOrder = await getOrderById(orderWithItem.id);
-        if (updatedOrder) {
-          setRecentOrders((prev) =>
-            prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
-          );
-        }
-      }
-    } catch (err) {
-      console.error("Error updating item status:", err);
-      // Refresh orders to get correct state
-      loadRecentOrders(true);
-    }
-  }, [recentOrders, loadRecentOrders]);
 
   // Handle editing an order item
   const handleEditOrderItem = useCallback(async (orderItem: OrderItem) => {
@@ -536,11 +478,48 @@ export default function TerminalPage() {
         is_active: true,
         no_prep_needed: itemData.no_prep_needed ?? false,
       });
-      setItems((prev) => [...prev, newItem]);
+      // Add to all items list
+      setAllItems((prev) => [...prev, newItem]);
+      
+      // Automatically link the new item to the current campaign
+      if (selectedCampaign) {
+        await linkItemToCampaign(selectedCampaign.id, newItem.id);
+        setItems((prev) => [...prev, newItem]);
+        setCampaignItemIds((prev) => new Set([...prev, newItem.id]));
+      }
+      
       return newItem;
     } catch (err) {
       console.error("Error creating item:", err);
       throw err;
+    }
+  };
+
+  // Toggle item-campaign link
+  const handleToggleItemCampaign = async (itemId: number, isLinked: boolean) => {
+    if (!selectedCampaign) return;
+    
+    try {
+      if (isLinked) {
+        // Unlink item from campaign
+        await unlinkItemFromCampaign(selectedCampaign.id, itemId);
+        setItems((prev) => prev.filter((item) => item.id !== itemId));
+        setCampaignItemIds((prev) => {
+          const next = new Set(prev);
+          next.delete(itemId);
+          return next;
+        });
+      } else {
+        // Link item to campaign
+        await linkItemToCampaign(selectedCampaign.id, itemId);
+        const item = allItems.find((i) => i.id === itemId);
+        if (item) {
+          setItems((prev) => [...prev, item]);
+          setCampaignItemIds((prev) => new Set([...prev, itemId]));
+        }
+      }
+    } catch (err) {
+      console.error("Error toggling item-campaign link:", err);
     }
   };
 
@@ -696,31 +675,25 @@ export default function TerminalPage() {
         </div>
       )}
 
-      {/* Ready Orders Banner */}
-      {readyOrders.length > 0 && (
-        <div className="fixed top-0 left-0 right-0 z-40 bg-tertiary-container px-4 py-2 lg:left-auto lg:right-[400px]">
-          <div className="flex items-center gap-2 overflow-x-auto">
-            <span className="font-medium text-on-tertiary-container shrink-0">Ready:</span>
-            {readyOrders.map((order) => (
-              <button
-                key={order.id}
-                onClick={() => handleDismissReadyOrder(order.id)}
-                className="shrink-0 rounded-full bg-tertiary px-3 py-1 text-sm text-on-tertiary hover:opacity-80"
-                title="Click to dismiss"
-              >
-                {order.customer_name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Bar with Campaign Selector */}
-        <header className={`flex items-center justify-between border-b border-outline-variant bg-surface-container-low px-3 py-3 sm:px-6 sm:py-4 ${readyOrders.length > 0 ? 'mt-10' : ''}`}>
+        <header className="flex items-center justify-between border-b border-outline-variant bg-surface-container-low px-3 py-3 sm:px-6 sm:py-4">
           <h1 className="text-lg font-medium text-on-surface sm:text-2xl">{process.env.NEXT_PUBLIC_ORG_NAME} Terminal</h1>
           <div className="flex items-center gap-2 sm:gap-4">
+            {/* Manage Campaign Items Button */}
+            {selectedCampaign && (
+              <button
+                onClick={() => setIsManageItemsModalOpen(true)}
+                className="flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-high sm:px-4"
+                title="Manage items for this campaign"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                <span className="hidden sm:inline">Manage Items</span>
+              </button>
+            )}
             <ThemeToggle />
             <CampaignSelector
               campaigns={campaigns}
@@ -795,7 +768,6 @@ export default function TerminalPage() {
         onLoadMoreOrders={handleLoadMoreOrders}
         onRefreshOrders={handleRefreshOrders}
         onOrderStatusChange={handleOrderStatusChange}
-        onItemStatusChange={handleItemStatusChange}
         onEditOrderItem={handleEditOrderItem}
         onDeleteOrderItem={handleDeleteOrderItem}
       />
@@ -860,6 +832,17 @@ export default function TerminalPage() {
           setEditingOrderItemModifiers([]);
         }}
         onSave={handleSaveOrderItem}
+      />
+
+      {/* Manage Campaign Items Modal */}
+      <ManageCampaignItemsModal
+        isOpen={isManageItemsModalOpen}
+        campaign={selectedCampaign}
+        allItems={allItems}
+        campaignItemIds={campaignItemIds}
+        categories={categories}
+        onClose={() => setIsManageItemsModalOpen(false)}
+        onToggleItem={handleToggleItemCampaign}
       />
     </div>
   );

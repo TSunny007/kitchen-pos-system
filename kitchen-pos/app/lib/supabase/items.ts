@@ -1,5 +1,5 @@
 import { supabase } from "./client";
-import type { Item, Modifier, ItemModifier } from "@/app/types";
+import type { Item, Modifier, ItemModifier, CampaignItem } from "@/app/types";
 
 /**
  * Fetch all active items, optionally filtered by category
@@ -238,4 +238,108 @@ export async function unlinkModifierFromItem(
     console.error("Error unlinking modifier from item:", error);
     throw error;
   }
+}
+
+// ============ Campaign Items ============
+
+/**
+ * Fetch all items for a specific campaign
+ */
+export async function getItemsForCampaign(campaignId: number): Promise<Item[]> {
+  const { data, error } = await supabase
+    .from("campaign_items")
+    .select("item:items(*, category:categories(*))")
+    .eq("campaign_id", campaignId);
+
+  if (error) {
+    console.error("Error fetching campaign items:", error);
+    throw error;
+  }
+
+  // Extract items from the joined result and filter active ones
+  return (data || [])
+    .map((ci) => ci.item as unknown as Item)
+    .filter((item) => item && item.is_active);
+}
+
+/**
+ * Get all campaign_items entries for a campaign
+ */
+export async function getCampaignItems(campaignId: number): Promise<CampaignItem[]> {
+  const { data, error } = await supabase
+    .from("campaign_items")
+    .select("*")
+    .eq("campaign_id", campaignId);
+
+  if (error) {
+    console.error("Error fetching campaign items:", error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+/**
+ * Link an item to a campaign
+ */
+export async function linkItemToCampaign(
+  campaignId: number,
+  itemId: number
+): Promise<CampaignItem> {
+  const { data, error } = await supabase
+    .from("campaign_items")
+    .insert({ campaign_id: campaignId, item_id: itemId })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error linking item to campaign:", error);
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Unlink an item from a campaign
+ */
+export async function unlinkItemFromCampaign(
+  campaignId: number,
+  itemId: number
+): Promise<void> {
+  const { error } = await supabase
+    .from("campaign_items")
+    .delete()
+    .eq("campaign_id", campaignId)
+    .eq("item_id", itemId);
+
+  if (error) {
+    console.error("Error unlinking item from campaign:", error);
+    throw error;
+  }
+}
+
+/**
+ * Bulk link multiple items to a campaign
+ */
+export async function bulkLinkItemsToCampaign(
+  campaignId: number,
+  itemIds: number[]
+): Promise<CampaignItem[]> {
+  const entries = itemIds.map((itemId) => ({
+    campaign_id: campaignId,
+    item_id: itemId,
+  }));
+
+  const { data, error } = await supabase
+    .from("campaign_items")
+    .insert(entries)
+    .select();
+
+  if (error) {
+    console.error("Error bulk linking items to campaign:", error);
+    throw error;
+  }
+
+  return data || [];
 }

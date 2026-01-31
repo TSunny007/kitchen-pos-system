@@ -95,8 +95,8 @@ export default function KitchenPage() {
       selectedCampaign.id,
       (eventType, order) => {
         setOrders((prev) => {
-          // Check if order should be visible in kitchen (new, in_progress, ready)
-          const isKitchenVisible = ["new", "in_progress", "ready"].includes(order.status);
+          // Check if order should be visible in kitchen (new, in_progress)
+          const isKitchenVisible = ["new", "in_progress"].includes(order.status);
 
           if (eventType === "INSERT") {
             // Add new order if it's kitchen-visible
@@ -198,8 +198,8 @@ export default function KitchenPage() {
     return orders.filter((order) =>
       order.order_items?.some((item) => {
         const matchesCategory = item.item?.category_id === selectedCategory.id;
-        // Include items that are not picked_up or cancelled (done items should show in Ready column)
-        const isVisible = item.status !== "picked_up" && item.status !== "cancelled";
+        // Include items that are not cancelled
+        const isVisible = item.status !== "cancelled";
         return matchesCategory && isVisible;
       })
     );
@@ -216,18 +216,23 @@ export default function KitchenPage() {
 
     filteredOrders.forEach((order) => {
       // Get items to consider - all items if no category, or just category items
+      // Also filter out cancelled items and legacy "picked_up" status
       const relevantItems = selectedCategory
         ? order.order_items?.filter(
-            (item) => item.item?.category_id === selectedCategory.id
+            (item) => item.item?.category_id === selectedCategory.id &&
+                      item.status !== "cancelled"
           ) || []
         : order.order_items?.filter(
-            (item) => item.status !== "picked_up" && item.status !== "cancelled"
+            (item) => item.status !== "cancelled"
           ) || [];
 
       if (relevantItems.length === 0) return;
 
       // Compute aggregate status for these items
-      const statuses = relevantItems.map((item) => item.status);
+      // Treat legacy "picked_up" status as "done"
+      const statuses = relevantItems.map((item) => 
+        (item.status as string) === "picked_up" ? "done" : item.status
+      );
       const allNew = statuses.every((s) => s === "new");
       const allDone = statuses.every((s) => s === "done");
       const anyInProgress = statuses.some((s) => s === "in_progress");
@@ -241,6 +246,11 @@ export default function KitchenPage() {
         grouped.new.push(order);
       }
     });
+
+    // Sort done orders by updated_at (most recently completed first)
+    grouped.done.sort((a, b) => 
+      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    );
 
     return grouped;
   }, [filteredOrders, selectedCategory]);

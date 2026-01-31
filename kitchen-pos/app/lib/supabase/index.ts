@@ -45,6 +45,12 @@ export {
   deactivateModifier,
   linkModifierToItem,
   unlinkModifierFromItem,
+  // Campaign items
+  getItemsForCampaign,
+  getCampaignItems,
+  linkItemToCampaign,
+  unlinkItemFromCampaign,
+  bulkLinkItemsToCampaign,
 } from "./items";
 
 // Re-export order functions
@@ -52,7 +58,6 @@ export {
   createOrder,
   getOrders,
   getOrderById,
-  getReadyOrders,
   getRecentOrders,
   getKitchenOrders,
   updateOrderStatus,
@@ -61,8 +66,6 @@ export {
   updateOrderStatusFromItems,
   updateOrderItem,
   deleteOrderItem,
-  markOrderPickedUp,
-  subscribeToReadyOrders,
   subscribeToOrders,
   subscribeToKitchenOrders,
 } from "./orders";

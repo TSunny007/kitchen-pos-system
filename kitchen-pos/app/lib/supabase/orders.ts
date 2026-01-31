@@ -281,13 +281,6 @@ export async function getOrderById(id: number): Promise<Order | null> {
   return data;
 }
 
-/**
- * Fetch orders that are ready for pickup
- */
-export async function getReadyOrders(campaignId?: number): Promise<Order[]> {
-  return getOrders(campaignId, "ready");
-}
-
 // ============ Order Updates ============
 
 /**
@@ -428,8 +421,7 @@ export async function updateMultipleOrderItemsStatus(
  * Rules:
  * - Order is "new" if all items are "new"
  * - Order is "in_progress" if any item is "in_progress" or some items are done but not all
- * - Order is "ready" if all non-cancelled items are "done" (but not picked_up yet)
- * - Order is "picked_up" when ALL non-cancelled items are "picked_up"
+ * - Order is "completed" if all non-cancelled items are "done"
  */
 export async function updateOrderStatusFromItems(orderId: number): Promise<void> {
   // Fetch all items for this order
@@ -460,22 +452,14 @@ export async function updateOrderStatusFromItems(orderId: number): Promise<void>
   const statuses = activeItems.map((item) => item.status);
   const allNew = statuses.every((s) => s === "new");
   const allDone = statuses.every((s) => s === "done");
-  const allPickedUp = statuses.every((s) => s === "picked_up");
-  const anyNew = statuses.some((s) => s === "new");
   const anyInProgress = statuses.some((s) => s === "in_progress");
   const anyDone = statuses.some((s) => s === "done");
-  const anyPickedUp = statuses.some((s) => s === "picked_up");
-  // All done or picked_up (ready for full pickup)
-  const allDoneOrPickedUp = statuses.every((s) => s === "done" || s === "picked_up");
 
   let newOrderStatus: OrderStatus;
   
-  if (allPickedUp) {
-    newOrderStatus = "picked_up";
-  } else if (allDoneOrPickedUp && !anyNew && !anyInProgress) {
-    // All items are done or picked_up (mixture is ok) - order is ready
-    newOrderStatus = "ready";
-  } else if (anyInProgress || anyDone || anyPickedUp) {
+  if (allDone) {
+    newOrderStatus = "completed";
+  } else if (anyInProgress || anyDone) {
     // Some items in progress, or some done but not all
     newOrderStatus = "in_progress";
   } else if (allNew) {
@@ -496,12 +480,12 @@ export async function updateOrderStatusFromItems(orderId: number): Promise<void>
     return;
   }
 
-  // Don't downgrade from picked_up or cancelled unless we're computing picked_up
+  // Don't downgrade from completed or cancelled
   if (currentOrder.status === "cancelled") {
     return;
   }
   
-  if (currentOrder.status === "picked_up" && newOrderStatus !== "picked_up") {
+  if (currentOrder.status === "completed" && newOrderStatus !== "completed") {
     return;
   }
 
@@ -702,52 +686,7 @@ async function recalculateOrderSubtotal(orderId: number): Promise<void> {
   }
 }
 
-/**
- * Mark an order as picked up
- */
-export async function markOrderPickedUp(orderId: number): Promise<Order> {
-  return updateOrderStatus(orderId, "picked_up");
-}
-
 // ============ Real-time Subscriptions ============
-
-/**
- * Subscribe to orders that become "ready" status for a campaign
- * Returns an unsubscribe function
- */
-export function subscribeToReadyOrders(
-  campaignId: number,
-  onOrderReady: (order: Order) => void
-): () => void {
-  const channel: RealtimeChannel = supabase
-    .channel(`ready-orders-${campaignId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "orders",
-        filter: `campaign_id=eq.${campaignId}`,
-      },
-      async (payload) => {
-        const newOrder = payload.new as Order;
-        // Only notify if the order just became "ready"
-        if (newOrder.status === "ready") {
-          // Fetch the full order with items
-          const fullOrder = await getOrderById(newOrder.id);
-          if (fullOrder) {
-            onOrderReady(fullOrder);
-          }
-        }
-      }
-    )
-    .subscribe();
-
-  // Return unsubscribe function
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}
 
 /**
  * Subscribe to all order changes for a campaign
@@ -791,7 +730,7 @@ export function subscribeToOrders(
 // ============ Kitchen Display Functions ============
 
 /**
- * Fetch active orders for kitchen display (new, in_progress, ready)
+ * Fetch active orders for kitchen display (new, in_progress)
  * These are orders that kitchen staff need to see and work on
  */
 export async function getKitchenOrders(campaignId: number): Promise<Order[]> {
@@ -808,7 +747,7 @@ export async function getKitchenOrders(campaignId: number): Promise<Order[]> {
     `
     )
     .eq("campaign_id", campaignId)
-    .in("status", ["new", "in_progress", "ready"])
+    .in("status", ["new", "in_progress"])
     .order("created_at", { ascending: true }) // Oldest first for kitchen
     .order("id", { referencedTable: "order_items", ascending: true });
 

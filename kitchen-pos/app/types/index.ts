@@ -50,8 +50,8 @@ export interface ItemModifier {
   modifier?: Modifier;
 }
 
-export type OrderStatus = 'new' | 'in_progress' | 'ready' | 'picked_up' | 'cancelled';
-export type OrderItemStatus = 'new' | 'in_progress' | 'done' | 'picked_up' | 'cancelled';
+export type OrderStatus = 'new' | 'in_progress' | 'completed' | 'cancelled';
+export type OrderItemStatus = 'new' | 'in_progress' | 'done' | 'cancelled';
 
 export interface Order {
   id: number;
@@ -86,6 +86,16 @@ export interface OrderItemModifier {
   label: string;
   price_delta: number;
   created_at: string;
+}
+
+export interface CampaignItem {
+  id: number;
+  campaign_id: number;
+  item_id: number;
+  created_at: string;
+  // Joined fields
+  item?: Item;
+  campaign?: Campaign;
 }
 
 // Cart types for the terminal UI

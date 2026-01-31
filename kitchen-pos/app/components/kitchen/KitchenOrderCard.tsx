@@ -11,7 +11,6 @@ interface KitchenOrderCardProps {
 
 // Item status config for kitchen display
 // Kitchen flow: new → in_progress (Preparing) → done (Ready)
-// Terminal marks items as picked_up when customer picks up
 const ITEM_STATUS_CONFIG: Record<OrderItemStatus, { label: string; bgClass: string; textClass: string }> = {
   new: {
     label: "New",
@@ -27,11 +26,6 @@ const ITEM_STATUS_CONFIG: Record<OrderItemStatus, { label: string; bgClass: stri
     label: "Ready",
     bgClass: "bg-primary-container",
     textClass: "text-on-primary-container",
-  },
-  picked_up: {
-    label: "Picked Up",
-    bgClass: "bg-surface-container-high",
-    textClass: "text-on-surface-variant",
   },
   cancelled: {
     label: "Cancelled",
@@ -94,7 +88,10 @@ export default function KitchenOrderCard({
   const aggregateStatus = useMemo((): OrderItemStatus => {
     if (filteredItems.length === 0) return "new";
     
-    const statuses = filteredItems.map((item) => item.status);
+    // Normalize statuses - treat legacy "picked_up" as "done"
+    const statuses = filteredItems.map((item) => 
+      (item.status as string) === "picked_up" ? "done" : item.status
+    );
     const allNew = statuses.every((s) => s === "new");
     const allDone = statuses.every((s) => s === "done");
     const anyInProgress = statuses.some((s) => s === "in_progress");
@@ -123,7 +120,7 @@ export default function KitchenOrderCard({
     if (!onItemStatusChange || filteredItems.length === 0) return;
 
     const itemIds = filteredItems
-      .filter((item) => item.status !== "cancelled" && item.status !== "done" && item.status !== "picked_up")
+      .filter((item) => item.status !== "cancelled" && item.status !== "done")
       .map((item) => item.id);
 
     if (itemIds.length === 0) return;
@@ -227,12 +224,11 @@ export default function KitchenOrderCard({
             const itemStatusConfig = ITEM_STATUS_CONFIG[orderItem.status];
             const isInProgress = orderItem.status === "in_progress";
             const isDone = orderItem.status === "done";
-            const isPickedUp = orderItem.status === "picked_up";
             
             return (
               <div
                 key={orderItem.id}
-                className={`px-4 py-3 ${isDone || isPickedUp ? "bg-primary-container/20" : ""}`}
+                className={`px-4 py-3 ${isDone ? "bg-primary-container/20" : ""}`}
               >
                 <div className="flex items-start gap-3">
                   {/* Checkbox for in_progress items OR checkmark for done items */}
@@ -257,7 +253,7 @@ export default function KitchenOrderCard({
                         />
                       </svg>
                     </button>
-                  ) : isDone || isPickedUp ? (
+                  ) : isDone ? (
                     <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-on-primary">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -331,8 +327,17 @@ export default function KitchenOrderCard({
         </div>
       )}
 
-      {/* Footer - Status actions */}
-      {onItemStatusChange && (
+      {/* Footer - Status actions or completion time */}
+      {aggregateStatus === "done" ? (
+        <div className="flex items-center justify-between border-t border-outline-variant p-3">
+          <span className="text-sm text-on-surface-variant">
+            Ordered: {formatTime(order.created_at)}
+          </span>
+          <span className="text-sm font-medium text-primary">
+            Completed: {formatTime(order.updated_at)}
+          </span>
+        </div>
+      ) : onItemStatusChange && (
         <div className="flex items-center justify-end gap-2 border-t border-outline-variant p-3">
           {aggregateStatus === "new" && (
             <button

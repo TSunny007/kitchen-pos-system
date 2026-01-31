@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CartItem, Order, OrderItem, OrderStatus, OrderItemStatus } from "../../types";
+import { CartItem, Order, OrderItem, OrderStatus } from "../../types";
 import RecentOrders from "./RecentOrders";
 
 type SidebarTab = "cart" | "orders";
@@ -24,7 +24,6 @@ interface CartSidebarProps {
   onLoadMoreOrders?: () => void;
   onRefreshOrders?: () => void;
   onOrderStatusChange?: (orderId: number, newStatus: OrderStatus) => void;
-  onItemStatusChange?: (orderItemId: number, newStatus: OrderItemStatus) => void;
   onEditOrderItem?: (orderItem: OrderItem) => void;
   onDeleteOrderItem?: (orderItemId: number) => void;
 }
@@ -46,7 +45,6 @@ export default function CartSidebar({
   onLoadMoreOrders,
   onRefreshOrders,
   onOrderStatusChange,
-  onItemStatusChange,
   onEditOrderItem,
   onDeleteOrderItem,
 }: CartSidebarProps) {
@@ -320,7 +318,6 @@ export default function CartSidebar({
             hasMore={hasMoreOrders}
             onLoadMore={onLoadMoreOrders || (() => {})}
             onStatusChange={onOrderStatusChange}
-            onItemStatusChange={onItemStatusChange}
             onRefresh={onRefreshOrders}
             onEditItem={onEditOrderItem}
             onDeleteItem={onDeleteOrderItem}
