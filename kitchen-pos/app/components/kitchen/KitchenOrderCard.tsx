@@ -224,6 +224,7 @@ export default function KitchenOrderCard({
             const itemStatusConfig = ITEM_STATUS_CONFIG[orderItem.status];
             const isInProgress = orderItem.status === "in_progress";
             const isDone = orderItem.status === "done";
+            const isNew = orderItem.status === "new";
             
             return (
               <div
@@ -270,20 +271,16 @@ export default function KitchenOrderCard({
                         />
                       </svg>
                     </span>
-                  ) : (
-                    /* Quantity badge for new items */
-                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-tertiary text-sm font-bold text-on-tertiary">
-                      {orderItem.quantity}×
+                  ) : isNew ? (
+                    /* Empty checkbox for new items */
+                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 border-tertiary bg-surface">
                     </span>
-                  )}
+                  ) : null}
                   
                   <div className="min-w-0 flex-1">
                     {/* Item name with status indicator */}
                     <div className="flex items-center gap-2">
                       <p className={`text-base font-semibold ${isDone ? "text-primary" : "text-on-surface"}`}>
-                        {orderItem.quantity > 1 && (isDone || isInProgress) && (
-                          <span className="mr-1">{orderItem.quantity}×</span>
-                        )}
                         {orderItem.item?.name || "Unknown item"}
                       </p>
                       {/* Individual item status badge */}

@@ -14,6 +14,7 @@ interface CartSidebarProps {
   onRemoveItem: (cartItemId: string) => void;
   onClearCart: () => void;
   onPlaceOrder: () => void;
+  onEditCartItem?: (cartItem: CartItem) => void;
   total: number;
   isOpen?: boolean;
   onClose?: () => void;
@@ -36,6 +37,7 @@ export default function CartSidebar({
   onRemoveItem,
   onClearCart,
   onPlaceOrder,
+  onEditCartItem,
   total,
   isOpen = false,
   onClose,
@@ -49,6 +51,8 @@ export default function CartSidebar({
   onDeleteOrderItem,
 }: CartSidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab>("cart");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -190,12 +194,23 @@ export default function CartSidebar({
               ) : (
                 <div className="divide-y divide-outline-variant">
                   {cartItems.map((cartItem) => (
-                    <div key={cartItem.id} className="p-4">
+                    <div 
+                      key={cartItem.id} 
+                      className={`p-4 ${onEditCartItem ? "cursor-pointer hover:bg-surface-container" : ""}`}
+                      onClick={() => onEditCartItem?.(cartItem)}
+                    >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h4 className="font-medium text-on-surface">
-                            {cartItem.item.name}
-                          </h4>
+                          <div className="flex items-center gap-2">
+                            {cartItem.quantity > 1 && (
+                              <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-primary text-xs font-bold text-on-primary">
+                                {cartItem.quantity}
+                              </span>
+                            )}
+                            <h4 className="font-medium text-on-surface">
+                              {cartItem.item.name}
+                            </h4>
+                          </div>
                           {cartItem.modifiers.length > 0 && (
                             <p className="mt-1 text-xs text-on-surface-variant">
                               {cartItem.modifiers.map((m) => m.name).join(", ")}
@@ -203,34 +218,59 @@ export default function CartSidebar({
                           )}
                           {cartItem.notes && (
                             <p className="mt-1 text-xs italic text-on-surface-variant">
-                              Note: {cartItem.notes}
+                              📝 {cartItem.notes}
                             </p>
                           )}
                         </div>
-                        <button
-                          onClick={() => onRemoveItem(cartItem.id)}
-                          className="ml-2 text-on-surface-variant hover:text-error"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                        
+                        {/* Delete button with confirm state */}
+                        {confirmDeleteId === cartItem.id ? (
+                          <div className="ml-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => {
+                                onRemoveItem(cartItem.id);
+                                setConfirmDeleteId(null);
+                              }}
+                              className="rounded-full bg-error px-3 py-1 text-xs font-medium text-on-error"
+                            >
+                              Remove
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="rounded-full bg-surface-container-high px-2 py-1 text-xs text-on-surface-variant"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDeleteId(cartItem.id);
+                            }}
+                            className="ml-2 text-on-surface-variant hover:text-error"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-5 w-5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        )}
                       </div>
 
                       <div className="mt-3 flex items-center justify-between">
                         {/* Quantity controls */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() =>
                               onUpdateQuantity(cartItem.id, cartItem.quantity - 1)

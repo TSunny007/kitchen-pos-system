@@ -153,29 +153,31 @@ export default function OrderCard({
         </div>
       </div>
 
-      {/* Collapsed preview - show first 2 items */}
+      {/* Collapsed preview - show first 3 items */}
       {!compact && !isExpanded && order.order_items && order.order_items.length > 0 && (
         <div className="border-t border-outline-variant px-4 py-2">
           <div className="space-y-1">
-            {order.order_items.slice(0, 2).map((orderItem) => (
+            {order.order_items.slice(0, 3).map((orderItem) => (
               <div
                 key={orderItem.id}
                 className="flex items-center justify-between text-sm"
               >
-                <span className="truncate text-on-surface-variant">
-                  <span className="font-medium text-on-surface">
-                    {orderItem.quantity}×
-                  </span>{" "}
+                <span className="truncate text-on-surface">
                   {orderItem.item?.name || "Unknown item"}
+                  {orderItem.modifiers && orderItem.modifiers.length > 0 && (
+                    <span className="ml-1 text-on-surface-variant">
+                      ({orderItem.modifiers.map(m => m.label).join(", ")})
+                    </span>
+                  )}
                 </span>
                 <span className="shrink-0 text-on-surface-variant">
                   {formatPrice(calculateItemPrice(orderItem))}
                 </span>
               </div>
             ))}
-            {order.order_items.length > 2 && (
+            {order.order_items.length > 3 && (
               <p className="text-xs text-on-surface-variant">
-                +{order.order_items.length - 2} more...
+                +{order.order_items.length - 3} more...
               </p>
             )}
           </div>
@@ -193,8 +195,23 @@ export default function OrderCard({
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-3">
-                    <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium bg-surface-container-high text-on-surface">
-                      {orderItem.quantity}
+                    {/* Status indicator */}
+                    <span className={`mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full ${
+                      orderItem.status === "done" ? "bg-primary text-on-primary" : 
+                      orderItem.status === "in_progress" ? "bg-secondary text-on-secondary" :
+                      "bg-surface-container-high text-on-surface-variant"
+                    }`}>
+                      {orderItem.status === "done" ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : orderItem.status === "in_progress" ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <span className="h-2 w-2 rounded-full bg-current" />
+                      )}
                     </span>
                       
                     <div className="min-w-0 flex-1">

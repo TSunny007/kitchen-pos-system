@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Item, Modifier } from "../../types";
 
 interface ItemDetailModalProps {
@@ -15,6 +15,11 @@ interface ItemDetailModalProps {
     modifiers: Modifier[],
     notes: string
   ) => void;
+  // Edit mode props
+  initialQuantity?: number;
+  initialModifiers?: Modifier[];
+  initialNotes?: string;
+  isEditMode?: boolean;
   // Modifier management callbacks (optional - only shown if provided)
   onCreateModifier?: (modifier: { name: string; price_delta: number }) => Promise<Modifier | null>;
   onLinkModifier?: (itemId: number, modifierId: number) => Promise<boolean>;
@@ -31,15 +36,28 @@ export default function ItemDetailModal({
   isOpen,
   onClose,
   onAddToCart,
+  initialQuantity,
+  initialModifiers,
+  initialNotes,
+  isEditMode = false,
   onCreateModifier,
   onLinkModifier,
   onUnlinkModifier,
   onDeleteModifier,
   onDeleteItem,
 }: ItemDetailModalProps) {
-  const [quantity, setQuantity] = useState(1);
-  const [selectedModifiers, setSelectedModifiers] = useState<Modifier[]>([]);
-  const [notes, setNotes] = useState("");
+  const [quantity, setQuantity] = useState(initialQuantity ?? 1);
+  const [selectedModifiers, setSelectedModifiers] = useState<Modifier[]>(initialModifiers ?? []);
+  const [notes, setNotes] = useState(initialNotes ?? "");
+  
+  // Sync state when modal opens in edit mode
+  useEffect(() => {
+    if (isOpen) {
+      setQuantity(initialQuantity ?? 1);
+      setSelectedModifiers(initialModifiers ?? []);
+      setNotes(initialNotes ?? "");
+    }
+  }, [isOpen, initialQuantity, initialModifiers, initialNotes]);
   
   // Modifier management state
   const [showModifierManager, setShowModifierManager] = useState(false);
@@ -644,7 +662,7 @@ export default function ItemDetailModal({
             onClick={handleAddToCart}
             className="flex w-full items-center justify-center gap-3 rounded-full bg-primary py-4 text-base font-medium text-on-primary transition-all hover:shadow-[var(--md-elevation-1)]"
           >
-            <span>Add to Order</span>
+            <span>{isEditMode ? "Update Item" : "Add to Order"}</span>
             <span className="rounded-full bg-on-primary/20 px-3 py-1">
               {formatPrice(calculateTotal())}
             </span>

@@ -54,15 +54,33 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     throw orderError;
   }
 
-  // 2. Create order items
+  // 2. Create order items - FLATTENED: one row per unit (quantity is always 1)
+  // This allows individual items to be checked off in the kitchen, even with different modifiers
   // Items with no_prep_needed=true are created with status 'done' (ready immediately)
-  const orderItemsToInsert = items.map((cartItem) => ({
-    order_id: order.id,
-    item_id: cartItem.item.id,
-    quantity: cartItem.quantity,
-    notes: cartItem.notes || null,
-    status: (cartItem.item.no_prep_needed ? "done" : "new") as OrderItemStatus,
-  }));
+  const orderItemsToInsert: Array<{
+    order_id: number;
+    item_id: number;
+    quantity: number;
+    notes: string | null;
+    status: OrderItemStatus;
+  }> = [];
+
+  // Track which cart item index each order item corresponds to
+  const cartItemIndexMap: number[] = [];
+
+  items.forEach((cartItem, cartIndex) => {
+    // Create one order_item for each unit in the quantity
+    for (let i = 0; i < cartItem.quantity; i++) {
+      orderItemsToInsert.push({
+        order_id: order.id,
+        item_id: cartItem.item.id,
+        quantity: 1, // Always 1 for flattened items
+        notes: cartItem.notes || null,
+        status: (cartItem.item.no_prep_needed ? "done" : "new") as OrderItemStatus,
+      });
+      cartItemIndexMap.push(cartIndex);
+    }
+  });
 
   const { data: orderItems, error: itemsError } = await supabase
     .from("order_items")
@@ -77,6 +95,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
   }
 
   // 3. Create order item modifiers
+  // Each flattened order item gets its own copy of the modifiers
   const orderItemModifiersToInsert: Array<{
     order_item_id: number;
     modifier_id: number;
@@ -84,8 +103,9 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     price_delta: number;
   }> = [];
 
-  items.forEach((cartItem, index) => {
-    const orderItem = orderItems[index];
+  orderItems.forEach((orderItem, orderItemIndex) => {
+    const cartIndex = cartItemIndexMap[orderItemIndex];
+    const cartItem = items[cartIndex];
     cartItem.modifiers.forEach((modifier) => {
       orderItemModifiersToInsert.push({
         order_item_id: orderItem.id,
@@ -109,11 +129,14 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
 
   // 4. Create initial status events for each order item
   // Use the actual status that was set (done for no_prep_needed items, new otherwise)
-  const statusEventsToInsert = orderItems.map((orderItem, index) => ({
-    order_item_id: orderItem.id,
-    old_status: null,
-    new_status: items[index].item.no_prep_needed ? "done" : "new",
-  }));
+  const statusEventsToInsert = orderItems.map((orderItem, orderItemIndex) => {
+    const cartIndex = cartItemIndexMap[orderItemIndex];
+    return {
+      order_item_id: orderItem.id,
+      old_status: null,
+      new_status: items[cartIndex].item.no_prep_needed ? "done" : "new",
+    };
+  });
 
   const { error: statusError } = await supabase
     .from("order_item_status_events")

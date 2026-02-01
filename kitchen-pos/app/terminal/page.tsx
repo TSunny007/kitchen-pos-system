@@ -91,6 +91,9 @@ export default function TerminalPage() {
   // All available modifiers (for linking to items)
   const [allModifiers, setAllModifiers] = useState<Modifier[]>([]);
 
+  // Editing cart item state
+  const [editingCartItem, setEditingCartItem] = useState<CartItem | null>(null);
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
@@ -212,6 +215,36 @@ export default function TerminalPage() {
 
   const handleRemoveFromCart = (cartItemId: string) => {
     setCartItems((prev) => prev.filter((item) => item.id !== cartItemId));
+  };
+
+  const handleEditCartItem = useCallback(async (cartItem: CartItem) => {
+    // Load modifiers for this item
+    try {
+      const modifiers = await getModifiersForItem(cartItem.item.id);
+      setItemModifiers(modifiers);
+      setEditingCartItem(cartItem);
+      setSelectedItem(cartItem.item);
+      setIsModalOpen(true);
+    } catch (err) {
+      console.error("Error loading modifiers for cart item edit:", err);
+    }
+  }, []);
+
+  const handleUpdateCartItemDetails = (item: Item, quantity: number, modifiers: Modifier[], notes: string) => {
+    if (!editingCartItem) return;
+    
+    // Update the existing cart item
+    setCartItems((prev) =>
+      prev.map((ci) =>
+        ci.id === editingCartItem.id
+          ? { ...ci, quantity, modifiers, notes }
+          : ci
+      )
+    );
+    setIsModalOpen(false);
+    setSelectedItem(null);
+    setItemModifiers([]);
+    setEditingCartItem(null);
   };
 
   const handleClearCart = () => {
@@ -759,6 +792,7 @@ export default function TerminalPage() {
         onRemoveItem={handleRemoveFromCart}
         onClearCart={handleClearCart}
         onPlaceOrder={handlePlaceOrder}
+        onEditCartItem={handleEditCartItem}
         total={calculateTotal()}
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
@@ -783,8 +817,13 @@ export default function TerminalPage() {
             setIsModalOpen(false);
             setSelectedItem(null);
             setItemModifiers([]);
+            setEditingCartItem(null);
           }}
-          onAddToCart={handleAddToCart}
+          onAddToCart={editingCartItem ? handleUpdateCartItemDetails : handleAddToCart}
+          initialQuantity={editingCartItem?.quantity}
+          initialModifiers={editingCartItem?.modifiers}
+          initialNotes={editingCartItem?.notes}
+          isEditMode={!!editingCartItem}
           onCreateModifier={handleCreateModifier}
           onLinkModifier={handleLinkModifier}
           onUnlinkModifier={handleUnlinkModifier}
