@@ -232,8 +232,8 @@ export default function KitchenOrderCard({
                 className={`px-4 py-3 ${isDone ? "bg-primary-container/20" : ""}`}
               >
                 <div className="flex items-start gap-3">
-                  {/* Checkbox for in_progress items OR checkmark for done items */}
-                  {isInProgress && onItemStatusChange ? (
+                  {/* Checkbox only for in_progress items */}
+                  {isInProgress && onItemStatusChange && (
                     <button
                       onClick={() => handleItemDone(orderItem.id)}
                       className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 border-secondary bg-surface text-secondary transition-all hover:bg-secondary hover:text-on-secondary active:scale-95"
@@ -254,28 +254,7 @@ export default function KitchenOrderCard({
                         />
                       </svg>
                     </button>
-                  ) : isDone ? (
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-on-primary">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={3}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    </span>
-                  ) : isNew ? (
-                    /* Empty checkbox for new items */
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 border-tertiary bg-surface">
-                    </span>
-                  ) : null}
+                  )}
                   
                   <div className="min-w-0 flex-1">
                     {/* Item name with status indicator */}
