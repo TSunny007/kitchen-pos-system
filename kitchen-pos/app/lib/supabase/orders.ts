@@ -147,6 +147,30 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     // Continue anyway - tracking is optional
   }
 
+  // 5. Decrement stock for items with tracking enabled.
+  // Aggregates quantities per item_id before decrementing (since items are flattened).
+  // Uses an atomic DB function so the check constraint (stock >= 0) is the safety net.
+  if (campaign_id) {
+    const stockDecrements = new Map<number, number>();
+    for (const cartItem of items) {
+      stockDecrements.set(
+        cartItem.item.id,
+        (stockDecrements.get(cartItem.item.id) ?? 0) + cartItem.quantity
+      );
+    }
+
+    for (const [itemId, qty] of stockDecrements) {
+      const { error: stockError } = await supabase.rpc(
+        "decrement_campaign_item_stock",
+        { p_campaign_id: campaign_id, p_item_id: itemId, p_quantity: qty }
+      );
+      if (stockError) {
+        console.error("Error decrementing stock for item", itemId, stockError);
+        // Don't fail the order — stock is a best-effort tracking layer
+      }
+    }
+  }
+
   return order;
 }
 

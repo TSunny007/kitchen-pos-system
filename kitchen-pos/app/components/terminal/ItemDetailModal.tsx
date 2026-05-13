@@ -46,14 +46,19 @@ export default function ItemDetailModal({
   onDeleteModifier,
   onDeleteItem,
 }: ItemDetailModalProps) {
-  const [quantity, setQuantity] = useState(initialQuantity ?? 1);
+  const maxQuantity = item.stock != null ? item.stock : Infinity;
+  const isSoldOut = item.stock === 0;
+
+  const [quantity, setQuantity] = useState(
+    Math.min(initialQuantity ?? 1, maxQuantity || 1)
+  );
   const [selectedModifiers, setSelectedModifiers] = useState<Modifier[]>(initialModifiers ?? []);
   const [notes, setNotes] = useState(initialNotes ?? "");
-  
+
   // Sync state when modal opens in edit mode
   useEffect(() => {
     if (isOpen) {
-      setQuantity(initialQuantity ?? 1);
+      setQuantity(Math.min(initialQuantity ?? 1, maxQuantity || 1));
       setSelectedModifiers(initialModifiers ?? []);
       setNotes(initialNotes ?? "");
     }
@@ -319,13 +324,21 @@ export default function ItemDetailModal({
 
           {/* Quantity Selector */}
           <div className="mb-6">
-            <label className="mb-2 block text-sm font-medium text-on-surface-variant">
-              Quantity
-            </label>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-sm font-medium text-on-surface-variant">
+                Quantity
+              </label>
+              {item.stock != null && item.stock > 0 && item.stock <= 5 && (
+                <span className="text-xs font-semibold text-error">
+                  {item.stock} left
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-high text-on-surface transition-colors hover:bg-surface-container-highest"
+                disabled={isSoldOut}
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-high text-on-surface transition-colors hover:bg-surface-container-highest disabled:opacity-40"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -346,8 +359,9 @@ export default function ItemDetailModal({
                 {quantity}
               </span>
               <button
-                onClick={() => setQuantity(quantity + 1)}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-high text-on-surface transition-colors hover:bg-surface-container-highest"
+                onClick={() => setQuantity(Math.min(quantity + 1, maxQuantity))}
+                disabled={isSoldOut || quantity >= maxQuantity}
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-high text-on-surface transition-colors hover:bg-surface-container-highest disabled:opacity-40"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -658,15 +672,21 @@ export default function ItemDetailModal({
           </div>
 
           {/* Add to Cart Button */}
-          <button
-            onClick={handleAddToCart}
-            className="flex w-full items-center justify-center gap-3 rounded-full bg-primary py-4 text-base font-medium text-on-primary transition-all hover:shadow-[var(--md-elevation-1)]"
-          >
-            <span>{isEditMode ? "Update Item" : "Add to Order"}</span>
-            <span className="rounded-full bg-on-primary/20 px-3 py-1">
-              {formatPrice(calculateTotal())}
-            </span>
-          </button>
+          {isSoldOut ? (
+            <div className="flex w-full items-center justify-center rounded-full bg-surface-container-high py-4 text-base font-medium text-on-surface-variant">
+              Out of Stock
+            </div>
+          ) : (
+            <button
+              onClick={handleAddToCart}
+              className="flex w-full items-center justify-center gap-3 rounded-full bg-primary py-4 text-base font-medium text-on-primary transition-all hover:shadow-[var(--md-elevation-1)]"
+            >
+              <span>{isEditMode ? "Update Item" : "Add to Order"}</span>
+              <span className="rounded-full bg-on-primary/20 px-3 py-1">
+                {formatPrice(calculateTotal())}
+              </span>
+            </button>
+          )}
         </div>
         </div>
       </div>

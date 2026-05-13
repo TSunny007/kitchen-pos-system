@@ -39,6 +39,8 @@ import {
   linkModifierToItem,
   unlinkModifierFromItem,
   deactivateModifier,
+  updateCampaignItemStock,
+  subscribeToCampaignItemStock,
 } from "../lib/supabase";
 import AddItemModal from "../components/terminal/AddItemModal";
 
@@ -157,6 +159,15 @@ export default function TerminalPage() {
 
     loadMenuData();
   }, [user, selectedCampaign]);
+
+  // Build a stock map for ManageCampaignItemsModal (item_id → stock)
+  const itemStocks = useMemo(() => {
+    const map = new Map<number, number | null>();
+    for (const item of items) {
+      map.set(item.id, item.stock ?? null);
+    }
+    return map;
+  }, [items]);
 
   // Filter items by category
   const filteredItems = useMemo(() => {
@@ -278,6 +289,21 @@ export default function TerminalPage() {
         campaign_id: selectedCampaign?.id ?? null,
         customer_name: customerName.trim(),
         items: cartItems,
+      });
+
+      // Optimistically decrement stock so the grid updates before the realtime event arrives
+      setItems((prev) => {
+        const decrements = new Map<number, number>();
+        for (const ci of cartItems) {
+          decrements.set(ci.item.id, (decrements.get(ci.item.id) ?? 0) + ci.quantity);
+        }
+        return prev.map((item) => {
+          const dec = decrements.get(item.id);
+          if (dec != null && item.stock != null) {
+            return { ...item, stock: Math.max(0, item.stock - dec) };
+          }
+          return item;
+        });
       });
 
       // Show confirmation
@@ -454,6 +480,24 @@ export default function TerminalPage() {
     };
   }, [selectedCampaign]);
 
+  // Subscribe to stock changes so all terminals see live stock updates
+  useEffect(() => {
+    if (!selectedCampaign) return;
+
+    const unsubscribe = subscribeToCampaignItemStock(
+      selectedCampaign.id,
+      (itemId, stock) => {
+        setItems((prev) =>
+          prev.map((item) => (item.id === itemId ? { ...item, stock } : item))
+        );
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [selectedCampaign]);
+
   // Campaign management handlers
   const handleCreateCampaign = async (name: string) => {
     try {
@@ -517,7 +561,7 @@ export default function TerminalPage() {
       // Automatically link the new item to the current campaign
       if (selectedCampaign) {
         await linkItemToCampaign(selectedCampaign.id, newItem.id);
-        setItems((prev) => [...prev, newItem]);
+        setItems((prev) => [...prev, { ...newItem, stock: null }]);
         setCampaignItemIds((prev) => new Set([...prev, newItem.id]));
       }
       
@@ -531,7 +575,7 @@ export default function TerminalPage() {
   // Toggle item-campaign link
   const handleToggleItemCampaign = async (itemId: number, isLinked: boolean) => {
     if (!selectedCampaign) return;
-    
+
     try {
       if (isLinked) {
         // Unlink item from campaign
@@ -543,17 +587,26 @@ export default function TerminalPage() {
           return next;
         });
       } else {
-        // Link item to campaign
+        // Link item to campaign; stock defaults to null (no limit) until set manually
         await linkItemToCampaign(selectedCampaign.id, itemId);
         const item = allItems.find((i) => i.id === itemId);
         if (item) {
-          setItems((prev) => [...prev, item]);
+          setItems((prev) => [...prev, { ...item, stock: null }]);
           setCampaignItemIds((prev) => new Set([...prev, itemId]));
         }
       }
     } catch (err) {
       console.error("Error toggling item-campaign link:", err);
     }
+  };
+
+  // Update stock for a campaign item and reflect immediately in local state
+  const handleUpdateItemStock = async (itemId: number, stock: number | null) => {
+    if (!selectedCampaign) return;
+    await updateCampaignItemStock(selectedCampaign.id, itemId, stock);
+    setItems((prev) =>
+      prev.map((item) => (item.id === itemId ? { ...item, stock } : item))
+    );
   };
 
   // Modifier management handlers
@@ -879,9 +932,11 @@ export default function TerminalPage() {
         campaign={selectedCampaign}
         allItems={allItems}
         campaignItemIds={campaignItemIds}
+        itemStocks={itemStocks}
         categories={categories}
         onClose={() => setIsManageItemsModalOpen(false)}
         onToggleItem={handleToggleItemCampaign}
+        onUpdateStock={handleUpdateItemStock}
       />
     </div>
   );

@@ -243,12 +243,12 @@ export async function unlinkModifierFromItem(
 // ============ Campaign Items ============
 
 /**
- * Fetch all items for a specific campaign
+ * Fetch all items for a specific campaign, including per-campaign stock
  */
 export async function getItemsForCampaign(campaignId: number): Promise<Item[]> {
   const { data, error } = await supabase
     .from("campaign_items")
-    .select("item:items(*, category:categories(*))")
+    .select("stock, item:items(*, category:categories(*))")
     .eq("campaign_id", campaignId);
 
   if (error) {
@@ -256,9 +256,11 @@ export async function getItemsForCampaign(campaignId: number): Promise<Item[]> {
     throw error;
   }
 
-  // Extract items from the joined result and filter active ones
   return (data || [])
-    .map((ci) => ci.item as unknown as Item)
+    .map((ci) => {
+      const item = ci.item as unknown as Item;
+      return { ...item, stock: ci.stock as number | null };
+    })
     .filter((item) => item && item.is_active);
 }
 
@@ -317,6 +319,57 @@ export async function unlinkItemFromCampaign(
     console.error("Error unlinking item from campaign:", error);
     throw error;
   }
+}
+
+/**
+ * Update the stock count for a campaign item.
+ * Pass null to disable stock tracking for that item.
+ */
+export async function updateCampaignItemStock(
+  campaignId: number,
+  itemId: number,
+  stock: number | null
+): Promise<void> {
+  const { error } = await supabase
+    .from("campaign_items")
+    .update({ stock })
+    .eq("campaign_id", campaignId)
+    .eq("item_id", itemId);
+
+  if (error) {
+    console.error("Error updating campaign item stock:", error);
+    throw error;
+  }
+}
+
+/**
+ * Subscribe to stock changes for all items in a campaign.
+ * Fires whenever any campaign_item row is updated (e.g. after an order decrements stock).
+ */
+export function subscribeToCampaignItemStock(
+  campaignId: number,
+  onStockChange: (itemId: number, stock: number | null) => void
+): () => void {
+  const channel = supabase
+    .channel(`campaign-item-stock-${campaignId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "campaign_items",
+        filter: `campaign_id=eq.${campaignId}`,
+      },
+      (payload) => {
+        const updated = payload.new as { item_id: number; stock: number | null };
+        onStockChange(updated.item_id, updated.stock);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
 /**
