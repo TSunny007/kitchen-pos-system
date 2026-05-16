@@ -30,6 +30,7 @@ export interface Item {
   updated_at: string;
   // Joined fields
   category?: Category;
+  stock?: number | null; // Set when fetched via campaign_items; null = no tracking, 0 = sold out
 }
 
 export interface Modifier {

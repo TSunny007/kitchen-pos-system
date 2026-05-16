@@ -51,6 +51,8 @@ export {
   linkItemToCampaign,
   unlinkItemFromCampaign,
   bulkLinkItemsToCampaign,
+  updateCampaignItemStock,
+  subscribeToCampaignItemStock,
 } from "./items";
 
 // Re-export order functions
