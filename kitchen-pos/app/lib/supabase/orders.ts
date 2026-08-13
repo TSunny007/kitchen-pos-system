@@ -489,10 +489,13 @@ export async function updateOrderStatusFromItems(orderId: number): Promise<void>
   
   if (activeItems.length === 0) {
     // All items cancelled
-    await supabase
+    const { error: cancelError } = await supabase
       .from("orders")
       .update({ status: "cancelled", updated_at: new Date().toISOString() })
       .eq("id", orderId);
+    if (cancelError) {
+      console.error("Error marking order cancelled:", cancelError);
+    }
     return;
   }
 
@@ -538,10 +541,13 @@ export async function updateOrderStatusFromItems(orderId: number): Promise<void>
 
   // Only update if status actually changed
   if (currentOrder.status !== newOrderStatus) {
-    await supabase
+    const { error: updateError } = await supabase
       .from("orders")
       .update({ status: newOrderStatus, updated_at: new Date().toISOString() })
       .eq("id", orderId);
+    if (updateError) {
+      console.error("Error updating order status:", updateError);
+    }
   }
 }
 
