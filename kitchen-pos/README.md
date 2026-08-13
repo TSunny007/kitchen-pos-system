@@ -42,6 +42,8 @@ echo 'export NODE_EXTRA_CA_CERTS="/opt/homebrew/opt/ca-certificates/share/ca-cer
 
    Re-run `vercel env pull .env.local` any time env vars change in the Vercel dashboard.
 
+   **For active dev involving DB migrations, backfills, or anything that needs to bypass RLS** (not needed for normal app usage — the client runs fine on the anon key + RLS): add a `SUPABASE_SERVICE_ROLE_KEY` yourself. It isn't set in Vercel and `vercel env pull` won't fetch it. Get it from the Supabase dashboard → your project → **Settings → API** → reveal the `service_role` secret key, then add `SUPABASE_SERVICE_ROLE_KEY="<value>"` to `.env.local`.
+
 4. **Run the dev server:**
    ```sh
    npm run dev
@@ -52,10 +54,9 @@ echo 'export NODE_EXTRA_CA_CERTS="/opt/homebrew/opt/ca-certificates/share/ca-cer
 
 ## Known caveats
 
-- **`app/lib/supabase/server.ts` expects `SUPABASE_SERVICE_ROLE_KEY`, but Vercel provides `SUPABASE_KEY`.** Today this is harmless — `createServerClient()` isn't called anywhere in the app (everything runs client-side against the anon key + RLS policies) — but if you add server-side/admin code that relies on the service-role key, it'll silently fall back to the anon key instead. Worth reconciling the naming (rename the Vercel env var, or update `server.ts` to read `SUPABASE_KEY`) before depending on it.
+- **`SUPABASE_KEY` (from `vercel env pull`) is just a duplicate of the anon key, not a service-role key.** `app/lib/supabase/server.ts` expects `SUPABASE_SERVICE_ROLE_KEY`, which isn't configured in Vercel at all — it's not merely a naming mismatch, the credential itself doesn't exist there yet. `createServerClient()` isn't called anywhere in the app today (everything runs client-side against the anon key + RLS policies), so this is harmless for normal usage. See the setup step above for adding a real service-role key when you need one.
 - **You're developing against production data.** There's no seed data or local Postgres wired up, despite the migrations living in `../supabase/migrations`. Be deliberate about test orders / stock edits.
 - **Toolchain versions are pinned slightly behind "latest".** `eslint` is pinned to `^9.39.5` and `typescript` to `^5.9.3` because `eslint-config-next@16.3.0`'s bundled `typescript-eslint` doesn't yet support ESLint 10 or TypeScript 7. Check if that's been resolved upstream before bumping either.
-- `next dev` auto-generates `AGENTS.md`/`CLAUDE.md` at the project root on first run (a built-in Next.js 16 feature, disable via `agentRules: false` in `next.config.ts`). They'll typically show as modified in git each time you run dev; that's expected.
 
 ## Database migrations
 
