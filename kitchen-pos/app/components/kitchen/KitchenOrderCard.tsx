@@ -88,10 +88,7 @@ export default function KitchenOrderCard({
   const aggregateStatus = useMemo((): OrderItemStatus => {
     if (filteredItems.length === 0) return "new";
     
-    // Normalize statuses - treat legacy "picked_up" as "done"
-    const statuses = filteredItems.map((item) => 
-      (item.status as string) === "picked_up" ? "done" : item.status
-    );
+    const statuses = filteredItems.map((item) => item.status);
     const allNew = statuses.every((s) => s === "new");
     const allDone = statuses.every((s) => s === "done");
     const anyInProgress = statuses.some((s) => s === "in_progress");

@@ -121,7 +121,7 @@ export default function KitchenPage() {
                 );
               }
             } else {
-              // Remove if no longer kitchen-visible (e.g., picked_up, cancelled)
+              // Remove if no longer kitchen-visible (e.g., completed, cancelled)
               return prev.filter((o) => o.id !== order.id);
             }
           } else if (eventType === "DELETE") {
@@ -203,8 +203,7 @@ export default function KitchenPage() {
   }, []);
 
   // Filter orders that have items in one of the selected categories
-  // An order is relevant if it has at least one item that matches any selected category
-  // and that item is not yet "picked_up" (still visible in kitchen)
+  // An order is relevant if it has at least one non-cancelled item that matches any selected category
   const filteredOrders = useMemo(() => {
     if (selectedCategoryIds.size === 0) return orders;
 
@@ -212,9 +211,7 @@ export default function KitchenPage() {
       order.order_items?.some((item) => {
         const matchesCategory =
           item.item?.category_id != null && selectedCategoryIds.has(item.item.category_id);
-        // Include items that are not cancelled or legacy picked_up
-        const isVisible = item.status !== "cancelled" && (item.status as string) !== "picked_up";
-        return matchesCategory && isVisible;
+        return matchesCategory && item.status !== "cancelled";
       })
     );
   }, [orders, selectedCategoryIds]);
@@ -230,25 +227,21 @@ export default function KitchenPage() {
 
     filteredOrders.forEach((order) => {
       // Get items to consider - all items if no categories selected, or just items in a selected category
-      // Also filter out cancelled items and legacy "picked_up" status
+      // Also filter out cancelled items
       const relevantItems = selectedCategoryIds.size > 0
         ? order.order_items?.filter(
             (item) => item.item?.category_id != null &&
                       selectedCategoryIds.has(item.item.category_id) &&
-                      item.status !== "cancelled" &&
-                      (item.status as string) !== "picked_up"
+                      item.status !== "cancelled"
           ) || []
         : order.order_items?.filter(
-           (item) => item.status !== "cancelled" && (item.status as string) !== "picked_up"
+           (item) => item.status !== "cancelled"
           ) || [];
 
       if (relevantItems.length === 0) return;
 
       // Compute aggregate status for these items
-      // Treat legacy "picked_up" status as "done"
-      const statuses = relevantItems.map((item) => 
-        (item.status as string) === "picked_up" ? "done" : item.status
-      );
+      const statuses = relevantItems.map((item) => item.status);
       const allNew = statuses.every((s) => s === "new");
       const allDone = statuses.every((s) => s === "done");
       const anyInProgress = statuses.some((s) => s === "in_progress");
