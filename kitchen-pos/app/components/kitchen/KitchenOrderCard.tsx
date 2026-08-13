@@ -6,7 +6,7 @@ import { Order, OrderItemStatus } from "../../types";
 interface KitchenOrderCardProps {
   order: Order;
   onItemStatusChange?: (orderItemIds: number[], newStatus: OrderItemStatus) => void;
-  filterCategoryId?: number; // If set, only show items from this category
+  filterCategoryIds?: Set<number>; // If non-empty, only show items in one of these categories
 }
 
 // Item status config for kitchen display
@@ -37,7 +37,7 @@ const ITEM_STATUS_CONFIG: Record<OrderItemStatus, { label: string; bgClass: stri
 export default function KitchenOrderCard({
   order,
   onItemStatusChange,
-  filterCategoryId,
+  filterCategoryIds,
 }: KitchenOrderCardProps) {
   const [elapsedTime, setElapsedTime] = useState<string>("");
 
@@ -75,14 +75,14 @@ export default function KitchenOrderCard({
     });
   };
 
-  // Filter items to only show those matching the category filter
+  // Filter items to only show those matching the opted-in categories
   const filteredItems = useMemo(() => {
     if (!order.order_items) return [];
-    if (!filterCategoryId) return order.order_items;
+    if (!filterCategoryIds || filterCategoryIds.size === 0) return order.order_items;
     return order.order_items.filter(
-      (item) => item.item?.category_id === filterCategoryId
+      (item) => item.item?.category_id != null && filterCategoryIds.has(item.item.category_id)
     );
-  }, [order.order_items, filterCategoryId]);
+  }, [order.order_items, filterCategoryIds]);
 
   // Compute the aggregate status of filtered items (for display and actions)
   const aggregateStatus = useMemo((): OrderItemStatus => {

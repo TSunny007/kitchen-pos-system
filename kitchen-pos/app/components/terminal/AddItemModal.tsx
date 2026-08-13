@@ -124,7 +124,7 @@ export default function AddItemModal({
       <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-md rounded-t-3xl bg-surface-container-lowest p-6 shadow-[var(--md-elevation-3)] sm:rounded-3xl">
+      <div className="relative z-10 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-6 shadow-[var(--md-elevation-3)] sm:rounded-3xl">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-on-surface">Add New Item</h2>

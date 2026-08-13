@@ -14,6 +14,7 @@ interface CartSidebarProps {
   onRemoveItem: (cartItemId: string) => void;
   onClearCart: () => void;
   onPlaceOrder: () => void;
+  isSubmitting?: boolean;
   onEditCartItem?: (cartItem: CartItem) => void;
   total: number;
   isOpen?: boolean;
@@ -37,6 +38,7 @@ export default function CartSidebar({
   onRemoveItem,
   onClearCart,
   onPlaceOrder,
+  isSubmitting = false,
   onEditCartItem,
   total,
   isOpen = false,
@@ -341,10 +343,10 @@ export default function CartSidebar({
                   onPlaceOrder();
                   onClose?.();
                 }}
-                disabled={cartItems.length === 0 || !customerName.trim()}
+                disabled={cartItems.length === 0 || !customerName.trim() || isSubmitting}
                 className="w-full rounded-full bg-primary py-4 text-base font-medium text-on-primary transition-all hover:shadow-[var(--md-elevation-1)] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Place Order
+                {isSubmitting ? "Placing Order..." : "Place Order"}
               </button>
             </div>
           </>

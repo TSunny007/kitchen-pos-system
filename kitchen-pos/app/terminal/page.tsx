@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Campaign, Category, Item, CartItem, Modifier, Order, OrderItem, OrderStatus } from "../types";
 import CampaignSelector from "../components/terminal/CampaignSelector";
 import CategoryTabs from "../components/terminal/CategoryTabs";
@@ -72,6 +73,7 @@ export default function TerminalPage() {
     id: number;
     customerName: string;
   } | null>(null);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   // Recent orders state (for sidebar view)
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
@@ -275,6 +277,8 @@ export default function TerminalPage() {
   };
 
   const handlePlaceOrder = async () => {
+    if (isPlacingOrder) return;
+
     if (!customerName.trim()) {
       alert("Please enter a customer name");
       return;
@@ -284,6 +288,7 @@ export default function TerminalPage() {
       return;
     }
 
+    setIsPlacingOrder(true);
     try {
       const order = await createOrder({
         campaign_id: selectedCampaign?.id ?? null,
@@ -322,6 +327,8 @@ export default function TerminalPage() {
     } catch (err) {
       console.error("Error placing order:", err);
       alert("Failed to place order. Please try again.");
+    } finally {
+      setIsPlacingOrder(false);
     }
   };
 
@@ -765,7 +772,28 @@ export default function TerminalPage() {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Bar with Campaign Selector */}
         <header className="flex items-center justify-between border-b border-outline-variant bg-surface-container-low px-3 py-3 sm:px-6 sm:py-4">
-          <h1 className="text-lg font-medium text-on-surface sm:text-2xl">{process.env.NEXT_PUBLIC_ORG_NAME} Terminal</h1>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Link
+              href="/"
+              className="rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 sm:h-6 sm:w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
+              </svg>
+            </Link>
+            <h1 className="text-lg font-medium text-on-surface sm:text-2xl">{process.env.NEXT_PUBLIC_ORG_NAME} Terminal</h1>
+          </div>
           <div className="flex items-center gap-2 sm:gap-4">
             {/* Manage Campaign Items Button */}
             {selectedCampaign && (
@@ -845,6 +873,7 @@ export default function TerminalPage() {
         onRemoveItem={handleRemoveFromCart}
         onClearCart={handleClearCart}
         onPlaceOrder={handlePlaceOrder}
+        isSubmitting={isPlacingOrder}
         onEditCartItem={handleEditCartItem}
         total={calculateTotal()}
         isOpen={isCartOpen}
