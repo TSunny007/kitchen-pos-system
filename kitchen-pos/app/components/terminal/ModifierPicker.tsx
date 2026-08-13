@@ -197,7 +197,7 @@ export default function ModifierPicker({
                 {showPriceInput ? (
                   <div className="px-3 py-2 space-y-2">
                     <p className="text-sm text-on-surface-variant">
-                      Create "{searchQuery.trim()}"
+                      Create &quot;{searchQuery.trim()}&quot;
                     </p>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
@@ -231,7 +231,7 @@ export default function ModifierPicker({
                     <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    <span>Create "{searchQuery.trim()}"</span>
+                    <span>Create &quot;{searchQuery.trim()}&quot;</span>
                   </button>
                 )}
               </div>
