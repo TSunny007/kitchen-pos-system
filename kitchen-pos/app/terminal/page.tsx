@@ -775,6 +775,8 @@ export default function TerminalPage() {
           <div className="flex items-center gap-3 sm:gap-4">
             <Link
               href="/"
+              aria-label="Back to home"
+              title="Back to home"
               className="rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
             >
               <svg

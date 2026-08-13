@@ -212,8 +212,8 @@ export default function KitchenPage() {
       order.order_items?.some((item) => {
         const matchesCategory =
           item.item?.category_id != null && selectedCategoryIds.has(item.item.category_id);
-        // Include items that are not cancelled
-        const isVisible = item.status !== "cancelled";
+        // Include items that are not cancelled or legacy picked_up
+        const isVisible = item.status !== "cancelled" && (item.status as string) !== "picked_up";
         return matchesCategory && isVisible;
       })
     );
@@ -235,10 +235,11 @@ export default function KitchenPage() {
         ? order.order_items?.filter(
             (item) => item.item?.category_id != null &&
                       selectedCategoryIds.has(item.item.category_id) &&
-                      item.status !== "cancelled"
+                      item.status !== "cancelled" &&
+                      (item.status as string) !== "picked_up"
           ) || []
         : order.order_items?.filter(
-            (item) => item.status !== "cancelled"
+           (item) => item.status !== "cancelled" && (item.status as string) !== "picked_up"
           ) || [];
 
       if (relevantItems.length === 0) return;
