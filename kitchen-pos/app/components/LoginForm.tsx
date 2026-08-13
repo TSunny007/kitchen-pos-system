@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAuth } from "../providers/AuthProvider";
 
 export default function LoginForm() {
-  const { signIn, isLoading } = useAuth();
+  const { signIn, isSigningIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +43,7 @@ export default function LoginForm() {
             className="w-full rounded-lg border border-outline bg-surface-container px-4 py-3 text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             placeholder="staff@example.com"
             autoComplete="email"
-            disabled={isLoading}
+            disabled={isSigningIn}
           />
         </div>
 
@@ -62,7 +62,7 @@ export default function LoginForm() {
             className="w-full rounded-lg border border-outline bg-surface-container px-4 py-3 text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             placeholder="••••••••"
             autoComplete="current-password"
-            disabled={isLoading}
+            disabled={isSigningIn}
           />
         </div>
       </div>
@@ -75,10 +75,10 @@ export default function LoginForm() {
 
       <button
         type="submit"
-        disabled={isLoading}
+        disabled={isSigningIn}
         className="w-full rounded-full bg-primary py-3 font-medium text-on-primary transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {isLoading ? "Signing in..." : "Sign In"}
+        {isSigningIn ? "Signing in..." : "Sign In"}
       </button>
     </form>
   );

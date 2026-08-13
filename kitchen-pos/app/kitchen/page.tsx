@@ -29,7 +29,8 @@ export default function KitchenPage() {
 
   // UI state
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  // Empty set = no filter (show all categories). Non-empty = opt-in union filter.
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(new Set());
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -184,29 +185,42 @@ export default function KitchenPage() {
     }
   }, [selectedCampaign]);
 
-  // Category selection handler
-  const handleCategorySelect = useCallback((category: Category | null) => {
-    setSelectedCategory(category);
+  // Category selection handler - toggles a category in/out of the opt-in set
+  const handleCategoryToggle = useCallback((categoryId: number) => {
+    setSelectedCategoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryId)) {
+        next.delete(categoryId);
+      } else {
+        next.add(categoryId);
+      }
+      return next;
+    });
   }, []);
 
-  // Filter orders that have items in the selected category
-  // An order is relevant if it has at least one item that matches the category
+  const handleClearCategoryFilter = useCallback(() => {
+    setSelectedCategoryIds(new Set());
+  }, []);
+
+  // Filter orders that have items in one of the selected categories
+  // An order is relevant if it has at least one item that matches any selected category
   // and that item is not yet "picked_up" (still visible in kitchen)
   const filteredOrders = useMemo(() => {
-    if (!selectedCategory) return orders;
+    if (selectedCategoryIds.size === 0) return orders;
 
     return orders.filter((order) =>
       order.order_items?.some((item) => {
-        const matchesCategory = item.item?.category_id === selectedCategory.id;
-        // Include items that are not cancelled
-        const isVisible = item.status !== "cancelled";
+        const matchesCategory =
+          item.item?.category_id != null && selectedCategoryIds.has(item.item.category_id);
+        // Include items that are not cancelled or legacy picked_up
+        const isVisible = item.status !== "cancelled" && (item.status as string) !== "picked_up";
         return matchesCategory && isVisible;
       })
     );
-  }, [orders, selectedCategory]);
+  }, [orders, selectedCategoryIds]);
 
-  // Group orders by the aggregate status of items in the selected category
-  // If no category selected, group by aggregate status of ALL items (not order status)
+  // Group orders by the aggregate status of items in the selected categories
+  // If no categories selected, group by aggregate status of ALL items (not order status)
   const ordersByItemStatus = useMemo(() => {
     const grouped: Record<"new" | "in_progress" | "done", Order[]> = {
       new: [],
@@ -215,15 +229,17 @@ export default function KitchenPage() {
     };
 
     filteredOrders.forEach((order) => {
-      // Get items to consider - all items if no category, or just category items
+      // Get items to consider - all items if no categories selected, or just items in a selected category
       // Also filter out cancelled items and legacy "picked_up" status
-      const relevantItems = selectedCategory
+      const relevantItems = selectedCategoryIds.size > 0
         ? order.order_items?.filter(
-            (item) => item.item?.category_id === selectedCategory.id &&
-                      item.status !== "cancelled"
+            (item) => item.item?.category_id != null &&
+                      selectedCategoryIds.has(item.item.category_id) &&
+                      item.status !== "cancelled" &&
+                      (item.status as string) !== "picked_up"
           ) || []
         : order.order_items?.filter(
-            (item) => item.status !== "cancelled"
+           (item) => item.status !== "cancelled" && (item.status as string) !== "picked_up"
           ) || [];
 
       if (relevantItems.length === 0) return;
@@ -253,7 +269,7 @@ export default function KitchenPage() {
     );
 
     return grouped;
-  }, [filteredOrders, selectedCategory]);
+  }, [filteredOrders, selectedCategoryIds]);
 
   // Count items for each status (used in column headers)
   const statusCounts = useMemo(() => {
@@ -360,9 +376,9 @@ export default function KitchenPage() {
       <div className="border-b border-outline-variant bg-surface-container-low">
         <div className="flex items-center gap-2 overflow-x-auto px-4 py-3">
           <button
-            onClick={() => handleCategorySelect(null)}
+            onClick={handleClearCategoryFilter}
             className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              !selectedCategory
+              selectedCategoryIds.size === 0
                 ? "bg-primary text-on-primary"
                 : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
             }`}
@@ -374,9 +390,10 @@ export default function KitchenPage() {
             .map((category) => (
               <button
                 key={category.id}
-                onClick={() => handleCategorySelect(category)}
+                onClick={() => handleCategoryToggle(category.id)}
+                aria-pressed={selectedCategoryIds.has(category.id)}
                 className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-                  selectedCategory?.id === category.id
+                  selectedCategoryIds.has(category.id)
                     ? "bg-secondary text-on-secondary shadow-[var(--md-elevation-1)]"
                     : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
                 }`}
@@ -408,7 +425,7 @@ export default function KitchenPage() {
                   key={order.id}
                   order={order}
                   onItemStatusChange={handleItemStatusChange}
-                  filterCategoryId={selectedCategory?.id}
+                  filterCategoryIds={selectedCategoryIds}
                 />
               ))
             )}
@@ -434,7 +451,7 @@ export default function KitchenPage() {
                   key={order.id}
                   order={order}
                   onItemStatusChange={handleItemStatusChange}
-                  filterCategoryId={selectedCategory?.id}
+                  filterCategoryIds={selectedCategoryIds}
                 />
               ))
             )}
@@ -460,7 +477,7 @@ export default function KitchenPage() {
                   key={order.id}
                   order={order}
                   onItemStatusChange={handleItemStatusChange}
-                  filterCategoryId={selectedCategory?.id}
+                  filterCategoryIds={selectedCategoryIds}
                 />
               ))
             )}
