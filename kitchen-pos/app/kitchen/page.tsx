@@ -96,8 +96,10 @@ export default function KitchenPage() {
       selectedCampaign.id,
       (eventType, order) => {
         setOrders((prev) => {
-          // Check if order should be visible in kitchen (new, in_progress)
-          const isKitchenVisible = ["new", "in_progress"].includes(order.status);
+          // Check if order should be visible in kitchen (new, in_progress, completed -
+          // 'completed' is the "Ready" state; excluding it would make orders
+          // disappear from the kitchen display the moment they're fully done)
+          const isKitchenVisible = ["new", "in_progress", "completed"].includes(order.status);
 
           if (eventType === "INSERT") {
             // Add new order if it's kitchen-visible
