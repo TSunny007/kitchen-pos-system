@@ -41,30 +41,33 @@ export default function KitchenOrderCard({
 }: KitchenOrderCardProps) {
   const [elapsedTime, setElapsedTime] = useState<string>("");
 
-  // Update elapsed time every minute
+  const formatDuration = (ms: number, justNowLabel = "Just now"): string => {
+    const diffMins = Math.floor(ms / 60000);
+    if (diffMins < 1) return justNowLabel;
+    if (diffMins < 60) return `${diffMins}m`;
+    const diffHours = Math.floor(diffMins / 60);
+    const remainingMins = diffMins % 60;
+    return `${diffHours}h ${remainingMins}m`;
+  };
+
+  // Update elapsed time every 30 seconds while the order is still active
   useEffect(() => {
     const updateElapsed = () => {
-      const now = new Date();
-      const created = new Date(order.created_at);
-      const diffMs = now.getTime() - created.getTime();
-      const diffMins = Math.floor(diffMs / 60000);
-
-      if (diffMins < 1) {
-        setElapsedTime("Just now");
-      } else if (diffMins < 60) {
-        setElapsedTime(`${diffMins}m`);
-      } else {
-        const diffHours = Math.floor(diffMins / 60);
-        const remainingMins = diffMins % 60;
-        setElapsedTime(`${diffHours}h ${remainingMins}m`);
-      }
+      setElapsedTime(formatDuration(Date.now() - new Date(order.created_at).getTime()));
     };
 
     updateElapsed();
-    const interval = setInterval(updateElapsed, 30000); // Update every 30 seconds
+    const interval = setInterval(updateElapsed, 30000);
 
     return () => clearInterval(interval);
   }, [order.created_at]);
+
+  // How long the order actually took to prep, once done - a fixed value
+  // rather than a live-ticking clock, since it no longer needs to move
+  const prepDuration = useMemo(
+    () => formatDuration(new Date(order.updated_at).getTime() - new Date(order.created_at).getTime(), "<1m"),
+    [order.created_at, order.updated_at]
+  );
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -186,12 +189,13 @@ export default function KitchenOrderCard({
     return null;
   }
 
-  const statusConfig = ITEM_STATUS_CONFIG[aggregateStatus];
+  // Tapping the whole card advances it from New straight to Preparing.
+  // Preparing cards keep per-item checkboxes instead, so the card itself
+  // isn't tappable there.
+  const isTappableToStart = aggregateStatus === "new" && !!onItemStatusChange;
 
-  return (
-    <div
-      className={`rounded-xl border-2 ${getCardBorderClass()} bg-surface-container-low shadow-[var(--md-elevation-1)] transition-all ${getUrgencyClass()}`}
-    >
+  const cardBody = (
+    <>
       {/* Header - Customer name, order number, time */}
       <div className={`flex items-center justify-between rounded-t-xl px-4 py-3 ${getHeaderBgClass()}`}>
         <div>
@@ -202,16 +206,9 @@ export default function KitchenOrderCard({
             #{order.id} • {formatTime(order.created_at)}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <span
-            className={`rounded-full px-3 py-1 text-sm font-semibold ${statusConfig.bgClass} ${statusConfig.textClass} ring-1 ring-current ring-opacity-20`}
-          >
-            {statusConfig.label}
-          </span>
-          <span className={`text-sm font-medium ${getHeaderTextClass()}`}>
-            ⏱ {elapsedTime}
-          </span>
-        </div>
+        <span className={`text-sm font-medium ${getHeaderTextClass()}`}>
+          ⏱ {aggregateStatus === "done" ? prepDuration : elapsedTime}
+        </span>
       </div>
 
       {/* Order Items - Only showing filtered items */}
@@ -222,7 +219,7 @@ export default function KitchenOrderCard({
             const isInProgress = orderItem.status === "in_progress";
             const isDone = orderItem.status === "done";
             const isNew = orderItem.status === "new";
-            
+
             return (
               <div
                 key={orderItem.id}
@@ -252,7 +249,7 @@ export default function KitchenOrderCard({
                       </svg>
                     </button>
                   )}
-                  
+
                   <div className="min-w-0 flex-1">
                     {/* Item name with status indicator */}
                     <div className="flex items-center gap-2">
@@ -266,7 +263,7 @@ export default function KitchenOrderCard({
                         {itemStatusConfig.label}
                       </span>
                     </div>
-                    
+
                     {/* Modifiers - displayed as a list below item name */}
                     {orderItem.modifiers && orderItem.modifiers.length > 0 ? (
                       <ul className="mt-1 space-y-0.5 pl-1">
@@ -281,12 +278,12 @@ export default function KitchenOrderCard({
                         ))}
                       </ul>
                     ) : null}
-                    
+
                     {/* Notes */}
                     {orderItem.notes && (
                       <p className={`mt-2 rounded-lg px-3 py-2 text-sm font-medium ${
-                        isDone 
-                          ? "bg-primary-container/50 text-on-primary-container" 
+                        isDone
+                          ? "bg-primary-container/50 text-on-primary-container"
                           : "bg-tertiary-container text-on-tertiary-container"
                       }`}>
                         📝 {orderItem.notes}
@@ -300,8 +297,9 @@ export default function KitchenOrderCard({
         </div>
       )}
 
-      {/* Footer - Status actions or completion time */}
-      {aggregateStatus === "done" ? (
+      {/* Footer - Status actions or completion time. New cards have no
+          footer - the whole card is the "start preparing" affordance. */}
+      {aggregateStatus === "done" && (
         <div className="flex items-center justify-between border-t border-outline-variant p-3">
           <span className="text-sm text-on-surface-variant">
             Ordered: {formatTime(order.created_at)}
@@ -310,23 +308,33 @@ export default function KitchenOrderCard({
             Completed: {formatTime(order.updated_at)}
           </span>
         </div>
-      ) : onItemStatusChange && (
+      )}
+      {aggregateStatus === "in_progress" && onItemStatusChange && (
         <div className="flex items-center justify-end gap-2 border-t border-outline-variant p-3">
-          {aggregateStatus === "new" && (
-            <button
-              onClick={handleAdvanceStatus}
-              className="rounded-full bg-secondary px-5 py-2 text-sm font-semibold text-on-secondary shadow-[var(--md-elevation-1)] transition-all hover:shadow-[var(--md-elevation-2)] active:scale-95"
-            >
-              Start Preparing
-            </button>
-          )}
-          {aggregateStatus === "in_progress" && (
-            <span className="text-sm text-on-surface-variant">
-              {filteredItems.filter(i => i.status === "done").length}/{filteredItems.length} ready
-            </span>
-          )}
+          <span className="text-sm text-on-surface-variant">
+            {filteredItems.filter(i => i.status === "done").length}/{filteredItems.length} ready
+          </span>
         </div>
       )}
-    </div>
+    </>
   );
+
+  const cardClassName = `rounded-xl border-2 ${getCardBorderClass()} bg-surface-container-low shadow-[var(--md-elevation-1)] transition-all ${getUrgencyClass()}`;
+
+  // New cards render as a real <button> so the "start preparing" action is
+  // keyboard/switch-device accessible (focusable, Enter/Space-operable) for
+  // free, instead of a div faking button behavior via onClick alone.
+  if (isTappableToStart) {
+    return (
+      <button
+        type="button"
+        onClick={handleAdvanceStatus}
+        className={`block w-full text-left ${cardClassName} cursor-pointer hover:shadow-[var(--md-elevation-2)] active:scale-[0.99]`}
+      >
+        {cardBody}
+      </button>
+    );
+  }
+
+  return <div className={cardClassName}>{cardBody}</div>;
 }
