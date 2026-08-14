@@ -783,8 +783,11 @@ export function subscribeToOrders(
 // ============ Kitchen Display Functions ============
 
 /**
- * Fetch active orders for kitchen display (new, in_progress)
- * These are orders that kitchen staff need to see and work on
+ * Fetch active orders for kitchen display (new, in_progress, completed)
+ * 'completed' is included because it's the aggregate item-level "Ready"
+ * state (see updateOrderStatusFromItems) - excluding it would make orders
+ * disappear from the kitchen display the moment they're fully done.
+ * These are orders that kitchen staff need to see and work on.
  */
 export async function getKitchenOrders(campaignId: number): Promise<Order[]> {
   const { data, error } = await supabase
@@ -800,7 +803,7 @@ export async function getKitchenOrders(campaignId: number): Promise<Order[]> {
     `
     )
     .eq("campaign_id", campaignId)
-    .in("status", ["new", "in_progress"])
+    .in("status", ["new", "in_progress", "completed"])
     .order("created_at", { ascending: true }) // Oldest first for kitchen
     .order("id", { referencedTable: "order_items", ascending: true });
 
