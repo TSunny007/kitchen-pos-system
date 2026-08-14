@@ -186,11 +186,17 @@ export default function KitchenOrderCard({
     return null;
   }
 
-  const statusConfig = ITEM_STATUS_CONFIG[aggregateStatus];
+  // Tapping the whole card advances it from New straight to Preparing.
+  // Preparing cards keep per-item checkboxes instead, so the card itself
+  // isn't tappable there.
+  const isTappableToStart = aggregateStatus === "new" && !!onItemStatusChange;
 
   return (
     <div
-      className={`rounded-xl border-2 ${getCardBorderClass()} bg-surface-container-low shadow-[var(--md-elevation-1)] transition-all ${getUrgencyClass()}`}
+      onClick={isTappableToStart ? handleAdvanceStatus : undefined}
+      className={`rounded-xl border-2 ${getCardBorderClass()} bg-surface-container-low shadow-[var(--md-elevation-1)] transition-all ${getUrgencyClass()} ${
+        isTappableToStart ? "cursor-pointer hover:shadow-[var(--md-elevation-2)] active:scale-[0.99]" : ""
+      }`}
     >
       {/* Header - Customer name, order number, time */}
       <div className={`flex items-center justify-between rounded-t-xl px-4 py-3 ${getHeaderBgClass()}`}>
@@ -202,16 +208,11 @@ export default function KitchenOrderCard({
             #{order.id} • {formatTime(order.created_at)}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <span
-            className={`rounded-full px-3 py-1 text-sm font-semibold ${statusConfig.bgClass} ${statusConfig.textClass} ring-1 ring-current ring-opacity-20`}
-          >
-            {statusConfig.label}
-          </span>
+        {aggregateStatus !== "done" && (
           <span className={`text-sm font-medium ${getHeaderTextClass()}`}>
             ⏱ {elapsedTime}
           </span>
-        </div>
+        )}
       </div>
 
       {/* Order Items - Only showing filtered items */}
@@ -300,8 +301,9 @@ export default function KitchenOrderCard({
         </div>
       )}
 
-      {/* Footer - Status actions or completion time */}
-      {aggregateStatus === "done" ? (
+      {/* Footer - Status actions or completion time. New cards have no
+          footer - the whole card is the "start preparing" affordance. */}
+      {aggregateStatus === "done" && (
         <div className="flex items-center justify-between border-t border-outline-variant p-3">
           <span className="text-sm text-on-surface-variant">
             Ordered: {formatTime(order.created_at)}
@@ -310,21 +312,12 @@ export default function KitchenOrderCard({
             Completed: {formatTime(order.updated_at)}
           </span>
         </div>
-      ) : onItemStatusChange && (
+      )}
+      {aggregateStatus === "in_progress" && onItemStatusChange && (
         <div className="flex items-center justify-end gap-2 border-t border-outline-variant p-3">
-          {aggregateStatus === "new" && (
-            <button
-              onClick={handleAdvanceStatus}
-              className="rounded-full bg-secondary px-5 py-2 text-sm font-semibold text-on-secondary shadow-[var(--md-elevation-1)] transition-all hover:shadow-[var(--md-elevation-2)] active:scale-95"
-            >
-              Start Preparing
-            </button>
-          )}
-          {aggregateStatus === "in_progress" && (
-            <span className="text-sm text-on-surface-variant">
-              {filteredItems.filter(i => i.status === "done").length}/{filteredItems.length} ready
-            </span>
-          )}
+          <span className="text-sm text-on-surface-variant">
+            {filteredItems.filter(i => i.status === "done").length}/{filteredItems.length} ready
+          </span>
         </div>
       )}
     </div>
