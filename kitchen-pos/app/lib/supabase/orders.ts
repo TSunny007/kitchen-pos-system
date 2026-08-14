@@ -494,7 +494,7 @@ export async function updateOrderStatusFromItems(orderId: number): Promise<void>
       .update({ status: "cancelled", updated_at: new Date().toISOString() })
       .eq("id", orderId);
     if (cancelError) {
-      console.error("Error marking order cancelled:", cancelError);
+      console.error(`Error marking order ${orderId} cancelled:`, cancelError);
     }
     return;
   }
@@ -546,7 +546,7 @@ export async function updateOrderStatusFromItems(orderId: number): Promise<void>
       .update({ status: newOrderStatus, updated_at: new Date().toISOString() })
       .eq("id", orderId);
     if (updateError) {
-      console.error("Error updating order status:", updateError);
+      console.error(`Error updating order ${orderId} to status "${newOrderStatus}":`, updateError);
     }
   }
 }
