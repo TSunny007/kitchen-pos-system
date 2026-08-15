@@ -74,7 +74,7 @@ export default function KitchenOrderCard({
   // null when the data isn't trustworthy (see MAX_PLAUSIBLE_PREP_MS above).
   const prepDuration = useMemo(() => {
     const ms = new Date(order.updated_at).getTime() - new Date(order.created_at).getTime();
-    if (ms < 0 || ms > MAX_PLAUSIBLE_PREP_MS) return null;
+    if (!Number.isFinite(ms) || ms < 0 || ms > MAX_PLAUSIBLE_PREP_MS) return null;
     return formatDuration(ms, "<1m");
   }, [order.created_at, order.updated_at]);
 
