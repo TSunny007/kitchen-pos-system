@@ -891,6 +891,9 @@ export default function TerminalPage() {
       />
 
       {/* Item Detail Modal */}
+      {/* onDeleteItem is only passed when adding a new item from the menu
+          grid - editing a cart line shouldn't offer "delete this menu item
+          campaign-wide" as an option (see editingCartItem below). */}
       {selectedItem && (
         <ItemDetailModal
           item={selectedItem}
@@ -912,7 +915,7 @@ export default function TerminalPage() {
           onLinkModifier={handleLinkModifier}
           onUnlinkModifier={handleUnlinkModifier}
           onDeleteModifier={handleDeleteModifier}
-          onDeleteItem={handleDeleteItem}
+          onDeleteItem={editingCartItem ? undefined : handleDeleteItem}
         />
       )}
 
