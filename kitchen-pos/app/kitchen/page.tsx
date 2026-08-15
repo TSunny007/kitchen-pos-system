@@ -16,6 +16,14 @@ import CampaignSelector from "../components/terminal/CampaignSelector";
 import KitchenOrderCard from "../components/kitchen/KitchenOrderCard";
 import Link from "next/link";
 
+// Single source of truth for swimlane labels, shared by the column headers
+// and the toggle buttons below so they can't drift out of sync.
+const SWIMLANE_CONFIG: Record<"new" | "in_progress" | "done", { label: string }> = {
+  new: { label: "New" },
+  in_progress: { label: "Preparing" },
+  done: { label: "Ready" },
+};
+
 export default function KitchenPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
@@ -31,6 +39,8 @@ export default function KitchenPage() {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   // Empty set = no filter (show all categories). Non-empty = opt-in union filter.
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(new Set());
+  // Empty set = show all swimlanes/columns. Non-empty = opt-in union filter.
+  const [selectedSwimlanes, setSelectedSwimlanes] = useState<Set<"new" | "in_progress" | "done">>(new Set());
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -203,6 +213,26 @@ export default function KitchenPage() {
   const handleClearCategoryFilter = useCallback(() => {
     setSelectedCategoryIds(new Set());
   }, []);
+
+  // Swimlane selection handler - toggles which status columns are shown
+  const handleSwimlaneToggle = useCallback((status: "new" | "in_progress" | "done") => {
+    setSelectedSwimlanes((prev) => {
+      const next = new Set(prev);
+      if (next.has(status)) {
+        next.delete(status);
+      } else {
+        next.add(status);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleClearSwimlaneFilter = useCallback(() => {
+    setSelectedSwimlanes(new Set());
+  }, []);
+
+  const isSwimlaneVisible = (status: "new" | "in_progress" | "done") =>
+    selectedSwimlanes.size === 0 || selectedSwimlanes.has(status);
 
   // Filter orders that have items in one of the selected categories
   // An order is relevant if it has at least one non-cancelled item that matches any selected category
@@ -399,12 +429,43 @@ export default function KitchenPage() {
         </div>
       </div>
 
+      {/* Swimlane Tabs */}
+      <div className="border-b border-outline-variant bg-surface-container-low">
+        <div className="flex items-center gap-2 overflow-x-auto px-4 py-3">
+          <button
+            onClick={handleClearSwimlaneFilter}
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+              selectedSwimlanes.size === 0
+                ? "bg-primary text-on-primary"
+                : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
+            }`}
+          >
+            All Stages
+          </button>
+          {(Object.keys(SWIMLANE_CONFIG) as Array<"new" | "in_progress" | "done">).map((status) => (
+            <button
+              key={status}
+              onClick={() => handleSwimlaneToggle(status)}
+              aria-pressed={selectedSwimlanes.has(status)}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                selectedSwimlanes.has(status)
+                  ? "bg-secondary text-on-secondary shadow-[var(--md-elevation-1)]"
+                  : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
+              }`}
+            >
+              {SWIMLANE_CONFIG[status].label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Main Content - Order Columns by Item Status */}
       <main className="flex flex-1 gap-4 overflow-x-auto p-4">
         {/* New Items Column */}
+        {isSwimlaneVisible("new") && (
         <div className="flex min-w-[300px] flex-1 flex-col rounded-xl bg-tertiary-container/30 sm:min-w-[320px]">
           <div className="flex items-center justify-between border-b border-tertiary/20 px-4 py-3">
-            <h2 className="font-semibold text-on-surface">New</h2>
+            <h2 className="font-semibold text-on-surface">{SWIMLANE_CONFIG.new.label}</h2>
             <span className="rounded-full bg-tertiary px-2.5 py-0.5 text-sm font-medium text-on-tertiary">
               {statusCounts.new}
             </span>
@@ -426,11 +487,13 @@ export default function KitchenPage() {
             )}
           </div>
         </div>
+        )}
 
         {/* In Progress Column */}
+        {isSwimlaneVisible("in_progress") && (
         <div className="flex min-w-[300px] flex-1 flex-col rounded-xl bg-secondary-container/30 sm:min-w-[320px]">
           <div className="flex items-center justify-between border-b border-secondary/20 px-4 py-3">
-            <h2 className="font-semibold text-on-surface">Preparing</h2>
+            <h2 className="font-semibold text-on-surface">{SWIMLANE_CONFIG.in_progress.label}</h2>
             <span className="rounded-full bg-secondary px-2.5 py-0.5 text-sm font-medium text-on-secondary">
               {statusCounts.in_progress}
             </span>
@@ -452,11 +515,13 @@ export default function KitchenPage() {
             )}
           </div>
         </div>
+        )}
 
         {/* Ready Column */}
+        {isSwimlaneVisible("done") && (
         <div className="flex min-w-[300px] flex-1 flex-col rounded-xl bg-primary-container/30 sm:min-w-[320px]">
           <div className="flex items-center justify-between border-b border-primary/20 px-4 py-3">
-            <h2 className="font-semibold text-on-surface">Ready</h2>
+            <h2 className="font-semibold text-on-surface">{SWIMLANE_CONFIG.done.label}</h2>
             <span className="rounded-full bg-primary px-2.5 py-0.5 text-sm font-medium text-on-primary">
               {statusCounts.done}
             </span>
@@ -478,6 +543,7 @@ export default function KitchenPage() {
             )}
           </div>
         </div>
+        )}
       </main>
     </div>
   );
