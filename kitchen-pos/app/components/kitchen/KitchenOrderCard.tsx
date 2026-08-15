@@ -34,6 +34,13 @@ const ITEM_STATUS_CONFIG: Record<OrderItemStatus, { label: string; bgClass: stri
   },
 };
 
+// Orders backfilled by the "fix stuck in_progress orders" migration got
+// updated_at stamped with whenever that migration actually ran, not their
+// true completion time - which can be days/weeks after created_at for
+// orders from old campaigns. No real prep takes anywhere near this long,
+// so treat anything past this as unreliable data rather than display it.
+const MAX_PLAUSIBLE_PREP_MS = 4 * 60 * 60 * 1000; // 4 hours
+
 export default function KitchenOrderCard({
   order,
   onItemStatusChange,
@@ -63,11 +70,13 @@ export default function KitchenOrderCard({
   }, [order.created_at]);
 
   // How long the order actually took to prep, once done - a fixed value
-  // rather than a live-ticking clock, since it no longer needs to move
-  const prepDuration = useMemo(
-    () => formatDuration(new Date(order.updated_at).getTime() - new Date(order.created_at).getTime(), "<1m"),
-    [order.created_at, order.updated_at]
-  );
+  // rather than a live-ticking clock, since it no longer needs to move.
+  // null when the data isn't trustworthy (see MAX_PLAUSIBLE_PREP_MS above).
+  const prepDuration = useMemo(() => {
+    const ms = new Date(order.updated_at).getTime() - new Date(order.created_at).getTime();
+    if (!Number.isFinite(ms) || ms < 0 || ms > MAX_PLAUSIBLE_PREP_MS) return null;
+    return formatDuration(ms, "<1m");
+  }, [order.created_at, order.updated_at]);
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -206,9 +215,11 @@ export default function KitchenOrderCard({
             #{order.id} • {formatTime(order.created_at)}
           </p>
         </div>
-        <span className={`text-sm font-medium ${getHeaderTextClass()}`}>
-          ⏱ {aggregateStatus === "done" ? prepDuration : elapsedTime}
-        </span>
+        {(aggregateStatus !== "done" || prepDuration) && (
+          <span className={`text-sm font-medium ${getHeaderTextClass()}`}>
+            ⏱ {aggregateStatus === "done" ? prepDuration : elapsedTime}
+          </span>
+        )}
       </div>
 
       {/* Order Items - Only showing filtered items */}
