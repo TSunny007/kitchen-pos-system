@@ -41,6 +41,7 @@ export default function KitchenPage() {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(new Set());
   // Empty set = show all swimlanes/columns. Non-empty = opt-in union filter.
   const [selectedSwimlanes, setSelectedSwimlanes] = useState<Set<"new" | "in_progress" | "done">>(new Set());
+  const [isDisplayOptionsOpen, setIsDisplayOptionsOpen] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -234,6 +235,10 @@ export default function KitchenPage() {
   const isSwimlaneVisible = (status: "new" | "in_progress" | "done") =>
     selectedSwimlanes.size === 0 || selectedSwimlanes.has(status);
 
+  // Shown as a badge on the Display Options button, since its current
+  // filter state isn't otherwise visible until the modal is opened.
+  const activeFilterCount = selectedCategoryIds.size + selectedSwimlanes.size;
+
   // Filter orders that have items in one of the selected categories
   // An order is relevant if it has at least one non-cancelled item that matches any selected category
   const filteredOrders = useMemo(() => {
@@ -388,6 +393,26 @@ export default function KitchenPage() {
               />
             </svg>
           </button>
+          <button
+            onClick={() => setIsDisplayOptionsOpen(true)}
+            className="relative flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-high sm:px-4"
+            title="Display options"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z"
+              />
+            </svg>
+            <span className="hidden sm:inline">Display Options</span>
+            {activeFilterCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-on-primary">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
           <ThemeToggle />
           <CampaignSelector
             campaigns={campaigns}
@@ -396,68 +421,6 @@ export default function KitchenPage() {
           />
         </div>
       </header>
-
-      {/* Category Tabs */}
-      <div className="border-b border-outline-variant bg-surface-container-low">
-        <div className="flex items-center gap-2 overflow-x-auto px-4 py-3">
-          <button
-            onClick={handleClearCategoryFilter}
-            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              selectedCategoryIds.size === 0
-                ? "bg-primary text-on-primary"
-                : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
-            }`}
-          >
-            All Categories
-          </button>
-          {categories
-            .sort((a, b) => a.display_order - b.display_order)
-            .map((category) => (
-              <button
-                key={category.id}
-                onClick={() => handleCategoryToggle(category.id)}
-                aria-pressed={selectedCategoryIds.has(category.id)}
-                className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-                  selectedCategoryIds.has(category.id)
-                    ? "bg-secondary text-on-secondary shadow-[var(--md-elevation-1)]"
-                    : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
-                }`}
-              >
-                {category.name}
-              </button>
-            ))}
-        </div>
-      </div>
-
-      {/* Swimlane Tabs */}
-      <div className="border-b border-outline-variant bg-surface-container-low">
-        <div className="flex items-center gap-2 overflow-x-auto px-4 py-3">
-          <button
-            onClick={handleClearSwimlaneFilter}
-            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              selectedSwimlanes.size === 0
-                ? "bg-primary text-on-primary"
-                : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
-            }`}
-          >
-            All Stages
-          </button>
-          {(Object.keys(SWIMLANE_CONFIG) as Array<"new" | "in_progress" | "done">).map((status) => (
-            <button
-              key={status}
-              onClick={() => handleSwimlaneToggle(status)}
-              aria-pressed={selectedSwimlanes.has(status)}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-                selectedSwimlanes.has(status)
-                  ? "bg-secondary text-on-secondary shadow-[var(--md-elevation-1)]"
-                  : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
-              }`}
-            >
-              {SWIMLANE_CONFIG[status].label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Main Content - Order Columns by Item Status */}
       <main className="flex flex-1 gap-4 overflow-x-auto p-4">
@@ -545,6 +508,97 @@ export default function KitchenPage() {
         </div>
         )}
       </main>
+
+      {/* Display Options Modal */}
+      {isDisplayOptionsOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setIsDisplayOptionsOpen(false)} />
+          <div className="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-6 shadow-[var(--md-elevation-3)] sm:rounded-3xl">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-on-surface">Display Options</h2>
+              <button
+                onClick={() => setIsDisplayOptionsOpen(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <h3 className="mb-2 text-sm font-medium text-on-surface-variant">Categories</h3>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handleClearCategoryFilter}
+                    className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                      selectedCategoryIds.size === 0
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
+                    }`}
+                  >
+                    All Categories
+                  </button>
+                  {categories
+                    .sort((a, b) => a.display_order - b.display_order)
+                    .map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => handleCategoryToggle(category.id)}
+                        aria-pressed={selectedCategoryIds.has(category.id)}
+                        className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                          selectedCategoryIds.has(category.id)
+                            ? "bg-secondary text-on-secondary shadow-[var(--md-elevation-1)]"
+                            : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
+                        }`}
+                      >
+                        {category.name}
+                      </button>
+                    ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-sm font-medium text-on-surface-variant">Stages</h3>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handleClearSwimlaneFilter}
+                    className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                      selectedSwimlanes.size === 0
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
+                    }`}
+                  >
+                    All Stages
+                  </button>
+                  {(Object.keys(SWIMLANE_CONFIG) as Array<"new" | "in_progress" | "done">).map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => handleSwimlaneToggle(status)}
+                      aria-pressed={selectedSwimlanes.has(status)}
+                      className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                        selectedSwimlanes.has(status)
+                          ? "bg-secondary text-on-secondary shadow-[var(--md-elevation-1)]"
+                          : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
+                      }`}
+                    >
+                      {SWIMLANE_CONFIG[status].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsDisplayOptionsOpen(false)}
+              className="mt-6 w-full rounded-full bg-primary py-3 text-base font-medium text-on-primary transition-all hover:shadow-[var(--md-elevation-1)]"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
