@@ -139,3 +139,16 @@ export const currencyAdornment: {
     step: digits === 0 ? "1" : `0.${"0".repeat(digits - 1)}1`,
   };
 })();
+
+/**
+ * A duration in SECONDS, e.g. "45s", "5m 30s" or "2h 05m". See `formatElapsed`
+ * for the millisecond, minute-granularity variant.
+ */
+export function formatDuration(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  if (total < 60) return `${total}s`;
+  const minutes = Math.floor(total / 60);
+  if (minutes < 60) return `${minutes}m ${total % 60}s`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${minutes % 60}m`;
+}

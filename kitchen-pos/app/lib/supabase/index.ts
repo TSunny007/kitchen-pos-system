@@ -63,3 +63,19 @@ export {
   subscribeToKitchenOrders,
 } from "./orders";
 export type { CreateOrderInput, PaginatedOrdersResult, UpdateOrderItemInput } from "./orders";
+
+// Re-export metrics functions
+export {
+  getCampaignOrdersForMetrics,
+  computeCampaignMetrics,
+  inferDefaultGranularity,
+} from "./metrics";
+export type {
+  TimeslotGranularity,
+  CampaignMetrics,
+  RevenueByItemRow,
+  RevenueByModifierRow,
+  RevenueByCategoryRow,
+  TimeToServeByItemRow,
+  TimeslotRow,
+} from "./metrics";
