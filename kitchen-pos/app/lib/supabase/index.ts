@@ -16,6 +16,7 @@ export type { User, Session } from "./auth";
 // Re-export campaign functions
 export {
   getCampaigns,
+  getAllCampaigns,
   getCampaignById,
   createCampaign,
   updateCampaign,
@@ -72,3 +73,19 @@ export {
   subscribeToKitchenOrders,
 } from "./orders";
 export type { CreateOrderInput, PaginatedOrdersResult, UpdateOrderItemInput } from "./orders";
+
+// Re-export metrics functions
+export {
+  getCampaignOrdersForMetrics,
+  computeCampaignMetrics,
+  inferDefaultGranularity,
+} from "./metrics";
+export type {
+  TimeslotGranularity,
+  CampaignMetrics,
+  RevenueByItemRow,
+  RevenueByModifierRow,
+  RevenueByCategoryRow,
+  TimeToServeByItemRow,
+  TimeslotRow,
+} from "./metrics";

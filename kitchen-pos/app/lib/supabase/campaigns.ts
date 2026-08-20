@@ -20,6 +20,26 @@ export async function getCampaigns(): Promise<Campaign[]> {
 }
 
 /**
+ * Fetch all campaigns regardless of active state, ordered by start date
+ * (most recent first). Used by the Metrics page, where reviewing a past
+ * (deactivated) campaign is the common case — unlike getCampaigns(), which
+ * only returns active campaigns for the operational Terminal/Kitchen views.
+ */
+export async function getAllCampaigns(): Promise<Campaign[]> {
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select("*")
+    .order("starts_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching all campaigns:", error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+/**
  * Fetch a single campaign by ID
  */
 export async function getCampaignById(id: number): Promise<Campaign | null> {
