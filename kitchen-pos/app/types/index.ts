@@ -14,6 +14,7 @@ export interface Category {
   name: string;
   slug: string;
   display_order: number;
+  requires_label: boolean;
   created_at: string;
 }
 
@@ -87,6 +88,16 @@ export interface OrderItemModifier {
   label: string;
   price_delta: number;
   created_at: string;
+}
+
+export type PrintJobStatus = 'pending' | 'handed_off' | 'cancelled';
+
+export interface PrintJob {
+  id: number;
+  order_item_id: number;
+  status: PrintJobStatus;
+  created_at: string;
+  handed_off_at: string | null;
 }
 
 export interface CampaignItem {
