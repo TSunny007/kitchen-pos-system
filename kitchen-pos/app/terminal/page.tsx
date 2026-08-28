@@ -33,6 +33,7 @@ import {
   createCampaign,
   updateCampaign,
   createCategory,
+  updateCategory,
   deleteCategory,
   createItem,
   deactivateItem,
@@ -683,6 +684,21 @@ export default function TerminalPage() {
     }
   };
 
+  // Category "requires label" toggle handler
+  const handleToggleCategoryRequiresLabel = async (
+    categoryId: number,
+    requiresLabel: boolean
+  ): Promise<boolean> => {
+    try {
+      const updated = await updateCategory(categoryId, { requires_label: requiresLabel });
+      setCategories((prev) => prev.map((c) => (c.id === categoryId ? updated : c)));
+      return true;
+    } catch (err) {
+      console.error("Error updating category:", err);
+      return false;
+    }
+  };
+
   // Category deletion handler
   const handleDeleteCategory = async (categoryId: number): Promise<boolean> => {
     try {
@@ -944,6 +960,7 @@ export default function TerminalPage() {
         }}
         onCreateCategory={handleCreateCategory}
         onDeleteCategory={handleDeleteCategory}
+        onToggleCategoryRequiresLabel={handleToggleCategoryRequiresLabel}
         onCreateModifier={handleCreateModifier}
       />
 
