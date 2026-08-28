@@ -63,6 +63,9 @@ export interface Order {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  // Sequential order number scoped to the campaign (starts at 1 per
+  // campaign). Null for orders with no campaign_id.
+  campaign_order_number: number | null;
   order_items?: OrderItem[];
 }
 

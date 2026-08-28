@@ -103,11 +103,12 @@ export default function KitchenItemCard({
     }
   };
 
-  // Get header background based on item status
+  // Get header background based on item status. New uses the same header
+  // color as Preparing - the card's border still tells the two apart -
+  // since tertiary-container was blending into the item body below it.
   const getHeaderBgClass = (): string => {
     switch (orderItem.status) {
       case "new":
-        return "bg-tertiary-container";
       case "in_progress":
         return "bg-secondary-container";
       case "done":
@@ -120,7 +121,6 @@ export default function KitchenItemCard({
   const getHeaderTextClass = (): string => {
     switch (orderItem.status) {
       case "new":
-        return "text-on-tertiary-container";
       case "in_progress":
         return "text-on-secondary-container";
       case "done":
@@ -150,7 +150,7 @@ export default function KitchenItemCard({
       <div className={`rounded-t-xl px-4 py-3 ${getHeaderBgClass()}`}>
         <div className="flex items-center justify-between">
           <span className={`text-xs opacity-70 ${getHeaderTextClass()}`}>
-            Order #{order.id}
+            Order #{order.campaign_order_number ?? order.id}
           </span>
           {(!isDone || prepDuration) && (
             <span className={`flex items-center gap-1 text-xs ${getHeaderTextClass()}`}>

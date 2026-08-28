@@ -3,6 +3,13 @@
 import { useState, useMemo, useEffect } from "react";
 import { Item, Category, Campaign } from "../../types";
 
+// Native <select> options are rendered by the OS on some platforms (e.g.
+// iPadOS's picker wheel), which ignores CSS text-transform entirely - so
+// category names are capitalized in the actual string, not just via CSS.
+function capitalizeWords(name: string): string {
+  return name.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 interface ManageCampaignItemsModalProps {
   isOpen: boolean;
   campaign: Campaign | null;
@@ -175,18 +182,28 @@ export default function ManageCampaignItemsModal({
                 className="w-full rounded-full bg-surface-container py-2 pl-10 pr-4 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
-            <select
-              value={selectedCategoryId ?? ""}
-              onChange={(e) => setSelectedCategoryId(e.target.value ? Number(e.target.value) : null)}
-              className="rounded-full bg-surface-container px-4 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">All Categories</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name} ({itemsByCategory[cat.id]?.length ?? 0})
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={selectedCategoryId ?? ""}
+                onChange={(e) => setSelectedCategoryId(e.target.value ? Number(e.target.value) : null)}
+                className="appearance-none rounded-full bg-surface-container py-2 pl-4 pr-8 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">All Categories</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {capitalizeWords(cat.name)} ({itemsByCategory[cat.id]?.length ?? 0})
+                  </option>
+                ))}
+              </select>
+              <svg
+                className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
           </div>
 
           <div className="mt-3 flex gap-2">
