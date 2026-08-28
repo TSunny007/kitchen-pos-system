@@ -77,7 +77,7 @@ export default function CategoryTabs({
             <div key={category.id} className="relative flex items-center">
               <button
                 onClick={() => onSelectCategory(category)}
-                className={`relative whitespace-nowrap px-6 py-4 text-sm font-medium transition-colors ${
+                className={`relative whitespace-nowrap px-6 py-4 text-sm font-medium capitalize transition-colors ${
                   isSelected
                     ? "text-primary"
                     : "text-on-surface-variant hover:text-on-surface"

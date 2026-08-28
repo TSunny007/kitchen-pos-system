@@ -145,7 +145,7 @@ export default function CategoryPicker({
                   backgroundColor: getCategoryColor(selectedCategory.id),
                 }}
               />
-              <span>{selectedCategory.name}</span>
+              <span className="capitalize">{selectedCategory.name}</span>
             </>
           ) : (
             <span>Select category...</span>
@@ -200,7 +200,7 @@ export default function CategoryPicker({
                       className="h-3 w-3 shrink-0 rounded-full"
                       style={{ backgroundColor: getCategoryColor(category.id) }}
                     />
-                    <span className="truncate">{category.name}</span>
+                    <span className="truncate capitalize">{category.name}</span>
                     {category.id === selectedCategoryId && (
                       <svg className="ml-auto h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

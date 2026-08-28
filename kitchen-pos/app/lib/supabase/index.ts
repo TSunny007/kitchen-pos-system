@@ -43,6 +43,7 @@ export {
   createModifier,
   updateModifier,
   deactivateModifier,
+  deactivateAllModifiers,
   linkModifierToItem,
   unlinkModifierFromItem,
   // Campaign items

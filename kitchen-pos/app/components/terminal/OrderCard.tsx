@@ -122,7 +122,7 @@ export default function OrderCard({
             )}
           </div>
           <p className="text-xs text-on-surface-variant">
-            #{order.id} • {getTimeSince(order.created_at)}
+            #{order.campaign_order_number ?? order.id} • {getTimeSince(order.created_at)}
           </p>
         </div>
         <div className="flex items-center gap-2">

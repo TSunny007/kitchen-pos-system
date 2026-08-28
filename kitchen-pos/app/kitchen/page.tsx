@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../providers/AuthProvider";
-import { Campaign, Category, Order, OrderItemStatus } from "../types";
+import { Campaign, Category, Order, OrderItem, OrderItemStatus } from "../types";
 import {
   getCampaigns,
   getCategories,
@@ -13,7 +13,8 @@ import {
 } from "../lib/supabase";
 import ThemeToggle from "../components/ThemeToggle";
 import CampaignSelector from "../components/terminal/CampaignSelector";
-import KitchenOrderCard from "../components/kitchen/KitchenOrderCard";
+import KitchenItemCard from "../components/kitchen/KitchenItemCard";
+import KitchenReadyOrderCard from "../components/kitchen/KitchenReadyOrderCard";
 import Link from "next/link";
 
 // Single source of truth for swimlane labels, shared by the column headers
@@ -40,7 +41,11 @@ export default function KitchenPage() {
   // Empty set = no filter (show all categories). Non-empty = opt-in union filter.
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(new Set());
   // Empty set = show all swimlanes/columns. Non-empty = opt-in union filter.
-  const [selectedSwimlanes, setSelectedSwimlanes] = useState<Set<"new" | "in_progress" | "done">>(new Set());
+  // Ready starts hidden - it's opt-in via the slider on the right edge of
+  // the screen, not shown by default like New/Preparing.
+  const [selectedSwimlanes, setSelectedSwimlanes] = useState<Set<"new" | "in_progress" | "done">>(
+    new Set(["new", "in_progress"])
+  );
   const [isDisplayOptionsOpen, setIsDisplayOptionsOpen] = useState(false);
 
   // Redirect to login if not authenticated
@@ -253,62 +258,82 @@ export default function KitchenPage() {
     );
   }, [orders, selectedCategoryIds]);
 
-  // Group orders by the aggregate status of items in the selected categories
-  // If no categories selected, group by aggregate status of ALL items (not order status)
-  const ordersByItemStatus = useMemo(() => {
-    const grouped: Record<"new" | "in_progress" | "done", Order[]> = {
+  // A single order item paired with its parent order, for rendering one
+  // card per item instead of one card per order.
+  type ItemCardEntry = { order: Order; orderItem: OrderItem };
+
+  // Group individual order items by their own status (not the order's
+  // aggregate status), optionally restricted to the selected categories.
+  // Each item gets its own card in New/Preparing and moves independently.
+  // Done items aren't grouped here - see readyOrderCards below, since the
+  // Ready column groups by order instead of by item.
+  const itemsByStatus = useMemo(() => {
+    const grouped: Record<"new" | "in_progress", ItemCardEntry[]> = {
       new: [],
       in_progress: [],
-      done: [],
     };
 
-    filteredOrders.forEach((order) => {
-      // Get items to consider - all items if no categories selected, or just items in a selected category
-      // Also filter out cancelled items
-      const relevantItems = selectedCategoryIds.size > 0
-        ? order.order_items?.filter(
-            (item) => item.item?.category_id != null &&
-                      selectedCategoryIds.has(item.item.category_id) &&
-                      item.status !== "cancelled"
-          ) || []
-        : order.order_items?.filter(
-           (item) => item.status !== "cancelled"
-          ) || [];
+    orders.forEach((order) => {
+      const relevantItems = (order.order_items || []).filter((item) => {
+        if (item.status === "cancelled") return false;
+        if (selectedCategoryIds.size === 0) return true;
+        return item.item?.category_id != null && selectedCategoryIds.has(item.item.category_id);
+      });
 
-      if (relevantItems.length === 0) return;
-
-      // Compute aggregate status for these items
-      const statuses = relevantItems.map((item) => item.status);
-      const allNew = statuses.every((s) => s === "new");
-      const allDone = statuses.every((s) => s === "done");
-      const anyInProgress = statuses.some((s) => s === "in_progress");
-      const anyDone = statuses.some((s) => s === "done");
-
-      if (allDone) {
-        grouped.done.push(order);
-      } else if (anyInProgress || anyDone) {
-        grouped.in_progress.push(order);
-      } else if (allNew) {
-        grouped.new.push(order);
-      }
+      relevantItems.forEach((orderItem) => {
+        if (orderItem.status === "new" || orderItem.status === "in_progress") {
+          grouped[orderItem.status].push({ order, orderItem });
+        }
+      });
     });
 
-    // Sort done orders by updated_at (most recently completed first)
-    grouped.done.sort((a, b) => 
-      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    // Oldest first, so the longest-waiting items surface at the top
+    grouped.new.sort(
+      (a, b) => new Date(a.orderItem.created_at).getTime() - new Date(b.orderItem.created_at).getTime()
+    );
+    grouped.in_progress.sort(
+      (a, b) => new Date(a.orderItem.created_at).getTime() - new Date(b.orderItem.created_at).getTime()
     );
 
     return grouped;
-  }, [filteredOrders, selectedCategoryIds]);
+  }, [orders, selectedCategoryIds]);
 
-  // Count items for each status (used in column headers)
+  // Ready column: one card per order, grouping every item on that order
+  // together (checked off individually as it's marked done elsewhere)
+  // rather than one card per item. An order only appears once at least one
+  // of its items is fulfilled - otherwise it'd just be a wall of red
+  // crosses cluttering the column before anything's actually ready.
+  const readyOrderCards = useMemo(() => {
+    const cards: { order: Order; items: OrderItem[] }[] = [];
+
+    orders.forEach((order) => {
+      const relevantItems = (order.order_items || []).filter((item) => {
+        if (item.status === "cancelled") return false;
+        if (selectedCategoryIds.size === 0) return true;
+        return item.item?.category_id != null && selectedCategoryIds.has(item.item.category_id);
+      });
+
+      const hasFulfilledItem = relevantItems.some((item) => item.status === "done");
+
+      if (relevantItems.length > 0 && hasFulfilledItem) {
+        cards.push({ order, items: relevantItems });
+      }
+    });
+
+    // Oldest order first
+    cards.sort((a, b) => new Date(a.order.created_at).getTime() - new Date(b.order.created_at).getTime());
+
+    return cards;
+  }, [orders, selectedCategoryIds]);
+
+  // Count cards for each column header badge
   const statusCounts = useMemo(() => {
     return {
-      new: ordersByItemStatus.new.length,
-      in_progress: ordersByItemStatus.in_progress.length,
-      done: ordersByItemStatus.done.length,
+      new: itemsByStatus.new.length,
+      in_progress: itemsByStatus.in_progress.length,
+      done: readyOrderCards.length,
     };
-  }, [ordersByItemStatus]);
+  }, [itemsByStatus, readyOrderCards]);
 
   // Loading state
   if (authLoading || isLoading || !user) {
@@ -434,17 +459,19 @@ export default function KitchenPage() {
             </span>
           </div>
           <div className="flex-1 space-y-3 overflow-y-auto p-3">
-            {ordersByItemStatus.new.length === 0 ? (
+            {itemsByStatus.new.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-on-surface-variant">
                 <p className="text-sm">No new orders</p>
               </div>
             ) : (
-              ordersByItemStatus.new.map((order) => (
-                <KitchenOrderCard
-                  key={order.id}
+              itemsByStatus.new.map(({ order, orderItem }) => (
+                <KitchenItemCard
+                  key={orderItem.id}
                   order={order}
-                  onItemStatusChange={handleItemStatusChange}
-                  filterCategoryIds={selectedCategoryIds}
+                  orderItem={orderItem}
+                  onStatusChange={(orderItemId, newStatus) =>
+                    handleItemStatusChange([orderItemId], newStatus)
+                  }
                 />
               ))
             )}
@@ -452,29 +479,43 @@ export default function KitchenPage() {
         </div>
         )}
 
-        {/* In Progress Column */}
+        {/* In Progress Column - always a 2-across layout. Cards are split
+            left/right by index (0=left, 1=right, 2=left, ...) so reading
+            order goes left-to-right then down, like a grid - but each
+            column is its own independent flex stack (not a CSS grid row),
+            so a card never stretches to match a taller neighbor next to it. */}
         {isSwimlaneVisible("in_progress") && (
-        <div className="flex min-w-[300px] flex-1 flex-col rounded-xl bg-secondary-container/30 sm:min-w-[320px]">
+        <div className="flex min-w-[300px] flex-[2] flex-col rounded-xl bg-secondary-container/30 sm:min-w-[600px]">
           <div className="flex items-center justify-between border-b border-secondary/20 px-4 py-3">
             <h2 className="font-semibold text-on-surface">{SWIMLANE_CONFIG.in_progress.label}</h2>
             <span className="rounded-full bg-secondary px-2.5 py-0.5 text-sm font-medium text-on-secondary">
               {statusCounts.in_progress}
             </span>
           </div>
-          <div className="flex-1 space-y-3 overflow-y-auto p-3">
-            {ordersByItemStatus.in_progress.length === 0 ? (
+          <div className="flex-1 overflow-y-auto p-3">
+            {itemsByStatus.in_progress.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-on-surface-variant">
                 <p className="text-sm">No orders in progress</p>
               </div>
             ) : (
-              ordersByItemStatus.in_progress.map((order) => (
-                <KitchenOrderCard
-                  key={order.id}
-                  order={order}
-                  onItemStatusChange={handleItemStatusChange}
-                  filterCategoryIds={selectedCategoryIds}
-                />
-              ))
+              <div className="flex gap-3">
+                {[0, 1].map((columnIndex) => (
+                  <div key={columnIndex} className="flex flex-1 flex-col gap-3">
+                    {itemsByStatus.in_progress
+                      .filter((_, i) => i % 2 === columnIndex)
+                      .map(({ order, orderItem }) => (
+                        <KitchenItemCard
+                          key={orderItem.id}
+                          order={order}
+                          orderItem={orderItem}
+                          onStatusChange={(orderItemId, newStatus) =>
+                            handleItemStatusChange([orderItemId], newStatus)
+                          }
+                        />
+                      ))}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -490,24 +531,47 @@ export default function KitchenPage() {
             </span>
           </div>
           <div className="flex-1 space-y-3 overflow-y-auto p-3">
-            {ordersByItemStatus.done.length === 0 ? (
+            {readyOrderCards.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-on-surface-variant">
-                <p className="text-sm">No orders ready</p>
+                <p className="text-sm">No active orders</p>
               </div>
             ) : (
-              ordersByItemStatus.done.map((order) => (
-                <KitchenOrderCard
-                  key={order.id}
-                  order={order}
-                  onItemStatusChange={handleItemStatusChange}
-                  filterCategoryIds={selectedCategoryIds}
-                />
+              readyOrderCards.map(({ order, items }) => (
+                <KitchenReadyOrderCard key={order.id} order={order} items={items} />
               ))
             )}
           </div>
         </div>
         )}
       </main>
+
+      {/* Ready column visibility toggle - Ready starts hidden to reduce
+          clutter, so this arrow tab on the right edge is the fast path
+          to reveal it without opening the full Display Options modal.
+          Points left (pull in) when hidden, right (push away) when shown. */}
+      <button
+        type="button"
+        aria-pressed={isSwimlaneVisible("done")}
+        aria-label={isSwimlaneVisible("done") ? "Hide Ready column" : "Show Ready column"}
+        title={isSwimlaneVisible("done") ? "Hide Ready column" : "Show Ready column"}
+        onClick={() => handleSwimlaneToggle("done")}
+        className="fixed right-0 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center rounded-l-2xl bg-surface-container-high p-3 shadow-[var(--md-elevation-2)] transition-colors hover:bg-surface-container-highest"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-5 w-5 text-on-surface-variant"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d={isSwimlaneVisible("done") ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7"}
+          />
+        </svg>
+      </button>
 
       {/* Display Options Modal */}
       {isDisplayOptionsOpen && (
@@ -547,7 +611,7 @@ export default function KitchenPage() {
                         key={category.id}
                         onClick={() => handleCategoryToggle(category.id)}
                         aria-pressed={selectedCategoryIds.has(category.id)}
-                        className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                        className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium capitalize transition-all ${
                           selectedCategoryIds.has(category.id)
                             ? "bg-secondary text-on-secondary shadow-[var(--md-elevation-1)]"
                             : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"

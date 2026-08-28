@@ -201,6 +201,23 @@ export async function deactivateModifier(id: number): Promise<void> {
 }
 
 /**
+ * Deactivate every active modifier (soft delete). Used to clear the
+ * modifier list when a new campaign starts, so ad-hoc modifiers from one
+ * campaign don't roll over and stay selectable in the next one.
+ */
+export async function deactivateAllModifiers(): Promise<void> {
+  const { error } = await supabase
+    .from("modifiers")
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq("is_active", true);
+
+  if (error) {
+    console.error("Error deactivating all modifiers:", error);
+    throw error;
+  }
+}
+
+/**
  * Link a modifier to an item
  */
 export async function linkModifierToItem(

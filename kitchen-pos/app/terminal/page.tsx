@@ -33,17 +33,31 @@ import {
   createCampaign,
   updateCampaign,
   createCategory,
+  updateCategory,
   deleteCategory,
   createItem,
+  updateItem,
   deactivateItem,
   createModifier,
   linkModifierToItem,
   unlinkModifierFromItem,
   deactivateModifier,
+  deactivateAllModifiers,
   updateCampaignItemStock,
   subscribeToCampaignItemStock,
+  bulkLinkItemsToCampaign,
 } from "../lib/supabase";
 import AddItemModal from "../components/terminal/AddItemModal";
+
+// Every new campaign starts with these coffee staples already linked, so
+// staff don't have to re-add the same handful of drinks each time.
+const DEFAULT_CAMPAIGN_ITEMS: { name: string; base_price: number }[] = [
+  { name: "Latte", base_price: 4 },
+  { name: "Cortado", base_price: 4 },
+  { name: "Cappuccino", base_price: 4 },
+  { name: "Espresso", base_price: 3 },
+];
+const DEFAULT_CAMPAIGN_ITEMS_CATEGORY = "Drink";
 
 export default function TerminalPage() {
   const router = useRouter();
@@ -70,7 +84,7 @@ export default function TerminalPage() {
 
   // Order confirmation
   const [lastOrderConfirmation, setLastOrderConfirmation] = useState<{
-    id: number;
+    orderNumber: number;
     customerName: string;
   } | null>(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
@@ -313,7 +327,7 @@ export default function TerminalPage() {
 
       // Show confirmation
       setLastOrderConfirmation({
-        id: order.id,
+        orderNumber: order.campaign_order_number ?? order.id,
         customerName: order.customer_name,
       });
 
@@ -505,6 +519,90 @@ export default function TerminalPage() {
     };
   }, [selectedCampaign]);
 
+  // Ensures Latte/Cortado/Cappuccino/Espresso exist (creating any that are
+  // missing under the "Drink" category) and links them all to the campaign.
+  // Also folds a stray plural "Drinks" category - created by an earlier
+  // version of this feature that didn't match the pre-existing singular
+  // "Drink" category - back into the original, moving its items over and
+  // removing the duplicate, so there's only ever one "Drink" category.
+  const linkDefaultItemsToCampaign = async (campaignId: number) => {
+    const [existingCategories, existingItems] = await Promise.all([
+      getCategories(),
+      getItems(),
+    ]);
+
+    let targetCategory = existingCategories.find(
+      (c) => c.name.toLowerCase() === DEFAULT_CAMPAIGN_ITEMS_CATEGORY.toLowerCase()
+    );
+
+    const strayCategory = existingCategories.find(
+      (c) => c.name.toLowerCase() === "drinks" && c.id !== targetCategory?.id
+    );
+
+    if (strayCategory) {
+      if (targetCategory) {
+        // Move any items still filed under the duplicate onto the
+        // original category, then remove the now-empty duplicate.
+        const strayItems = existingItems.filter((i) => i.category_id === strayCategory.id);
+        for (const item of strayItems) {
+          await updateItem(item.id, { category_id: targetCategory.id });
+          item.category_id = targetCategory.id;
+        }
+        try {
+          await deleteCategory(strayCategory.id);
+          setCategories((prev) => prev.filter((c) => c.id !== strayCategory.id));
+        } catch (err) {
+          console.error("Could not remove duplicate category:", err);
+        }
+      } else {
+        // No pre-existing "Drink" category - the duplicate becomes canonical.
+        targetCategory = await updateCategory(strayCategory.id, {
+          name: DEFAULT_CAMPAIGN_ITEMS_CATEGORY,
+          slug: DEFAULT_CAMPAIGN_ITEMS_CATEGORY.toLowerCase(),
+        });
+        setCategories((prev) =>
+          prev.map((c) => (c.id === targetCategory!.id ? targetCategory! : c))
+        );
+      }
+    }
+
+    if (!targetCategory) {
+      const maxOrder = existingCategories.reduce((max, c) => Math.max(max, c.display_order), 0);
+      targetCategory = await createCategory({
+        name: DEFAULT_CAMPAIGN_ITEMS_CATEGORY,
+        slug: DEFAULT_CAMPAIGN_ITEMS_CATEGORY.toLowerCase(),
+        display_order: maxOrder + 1,
+      });
+      setCategories((prev) => [...prev, targetCategory!]);
+    }
+
+    const newlyCreatedItems: Item[] = [];
+    const itemIdsToLink = await Promise.all(
+      DEFAULT_CAMPAIGN_ITEMS.map(async ({ name, base_price }) => {
+        const existing = existingItems.find((i) => i.name.toLowerCase() === name.toLowerCase());
+        if (existing) return existing.id;
+
+        const created = await createItem({
+          name,
+          description: null,
+          base_price,
+          category_id: targetCategory!.id,
+          image_url: null,
+          is_active: true,
+          no_prep_needed: false,
+        });
+        newlyCreatedItems.push(created);
+        return created.id;
+      })
+    );
+
+    if (newlyCreatedItems.length > 0) {
+      setAllItems((prev) => [...prev, ...newlyCreatedItems]);
+    }
+
+    await bulkLinkItemsToCampaign(campaignId, itemIdsToLink);
+  };
+
   // Campaign management handlers
   const handleCreateCampaign = async (name: string) => {
     try {
@@ -518,6 +616,16 @@ export default function TerminalPage() {
         ends_at: endOfDay.toISOString(),
         is_active: true,
       });
+
+      // Clear the modifier list so ad-hoc modifiers from the previous
+      // campaign (e.g. one-off notes staff added on the fly) don't roll
+      // over and stay selectable in this one.
+      await deactivateAllModifiers();
+      setAllModifiers([]);
+      setItemModifiers([]);
+      setEditingOrderItemModifiers([]);
+
+      await linkDefaultItemsToCampaign(newCampaign.id);
 
       setCampaigns((prev) => [newCampaign, ...prev]);
       setSelectedCampaign(newCampaign);
@@ -762,7 +870,7 @@ export default function TerminalPage() {
         <div className="fixed top-4 left-1/2 z-50 -translate-x-1/2 transform">
           <div className="rounded-lg bg-primary px-6 py-3 text-on-primary shadow-lg">
             <p className="font-medium">
-              Order #{lastOrderConfirmation.id} for {lastOrderConfirmation.customerName} submitted!
+              Order #{lastOrderConfirmation.orderNumber} for {lastOrderConfirmation.customerName} submitted!
             </p>
           </div>
         </div>
