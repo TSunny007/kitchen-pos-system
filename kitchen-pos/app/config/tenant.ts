@@ -22,53 +22,72 @@ function env(value: string | undefined, fallback: string): string {
   return trimmed ? trimmed : fallback;
 }
 
+function reject(name: string, value: string, fallback: string): string {
+  console.warn(`[tenant] ${name}="${value}" is not valid; falling back to "${fallback}".`);
+  return fallback;
+}
+
 /**
- * Locale and currency are validated here, at the config boundary, so every
- * consumer — the formatters, the `lang` attribute — sees a value that is
- * already good.
+ * Validating these at the config boundary is load-bearing, not defensive
+ * habit: `Intl` throws a RangeError on a malformed locale or currency code,
+ * and this module is imported transitively by every page — an unguarded throw
+ * wouldn't mis-render a price, it would stop the module evaluating and render
+ * the app blank.
  *
- * This is load-bearing, not defensive habit: `Intl` throws a RangeError on a
- * malformed locale or an unknown currency code, and this module is imported
- * transitively by every page. An unguarded throw wouldn't mis-render a price,
- * it would stop the module evaluating and render the whole app blank. `en_US`
- * — the POSIX spelling, and the likeliest typo — is exactly such a value.
+ * Constructing an `Intl` formatter is *not* a sufficient check on its own,
+ * though, and that's the subtle part. `Intl` only rejects values it can't
+ * parse: `new Intl.NumberFormat("english")` and `{ currency: "XYZ" }` both
+ * succeed, then silently resolve to en-US and render "XYZ 4.50". So the tag is
+ * checked against what the runtime actually supports, and the code against the
+ * real ISO 4217 list.
  */
-function validated(value: string, fallback: string, probe: (v: string) => unknown, name: string): string {
+function validLocale(value: string, fallback: string): string {
   try {
-    probe(value);
-    return value;
+    // Throws on a malformed tag ("en_US"), returns [] on a well-formed tag the
+    // runtime has no data for ("xx-YY", "english").
+    if (Intl.NumberFormat.supportedLocalesOf(value).length > 0) return value;
   } catch {
-    console.warn(`[tenant] ${name}="${value}" is not valid; falling back to "${fallback}".`);
-    return fallback;
+    /* fall through */
+  }
+  return reject("NEXT_PUBLIC_LOCALE", value, fallback);
+}
+
+function validCurrency(value: string, inLocale: string, fallback: string): string {
+  const code = value.toUpperCase();
+  try {
+    // Baseline 2023; guard so an older engine degrades to the parse check
+    // alone rather than throwing on a missing method.
+    if (typeof Intl.supportedValuesOf === "function") {
+      return Intl.supportedValuesOf("currency").includes(code)
+        ? code
+        : reject("NEXT_PUBLIC_CURRENCY", value, fallback);
+    }
+    new Intl.NumberFormat(inLocale, { style: "currency", currency: code });
+    return code;
+  } catch {
+    return reject("NEXT_PUBLIC_CURRENCY", value, fallback);
   }
 }
 
 // --- Tier 1: environment ---------------------------------------------------
 
-/** Organisation display name, woven into page titles and headers. */
-const orgName = env(process.env.NEXT_PUBLIC_ORG_NAME, "Kitchen");
+/**
+ * Organisation display name. Empty when unset, so headings read "Kitchen
+ * Display" rather than "Kitchen Kitchen Display" on a zero-config deploy.
+ */
+const orgName = env(process.env.NEXT_PUBLIC_ORG_NAME, "");
 
 /** BCP 47 tag driving number, currency, and time formatting. */
-const locale = validated(
-  env(process.env.NEXT_PUBLIC_LOCALE, "en-US"),
-  "en-US",
-  (v) => new Intl.NumberFormat(v),
-  "NEXT_PUBLIC_LOCALE",
-);
+const locale = validLocale(env(process.env.NEXT_PUBLIC_LOCALE, "en-US"), "en-US");
 
 /** ISO 4217 code, e.g. USD, EUR, GBP, JPY. */
-const currency = validated(
-  env(process.env.NEXT_PUBLIC_CURRENCY, "USD"),
-  "USD",
-  (v) => new Intl.NumberFormat(locale, { style: "currency", currency: v }),
-  "NEXT_PUBLIC_CURRENCY",
-);
+const currency = validCurrency(env(process.env.NEXT_PUBLIC_CURRENCY, "USD"), locale, "USD");
 
 // --- Tier 2: constants a fork edits ----------------------------------------
 
 /** `title` names the station on the landing page; `heading` tops its own screen. */
 function station(title: string, description: string) {
-  return { title, description, heading: `${orgName} ${title}` };
+  return { title, description, heading: orgName ? `${orgName} ${title}` : title };
 }
 
 export const tenant = {
@@ -76,9 +95,20 @@ export const tenant = {
   locale,
   currency,
 
-  /** Browser tab title. */
-  appName: `${orgName} POS`,
+  /** Browser tab title. Falls back to a generic name when no org is configured. */
+  appName: orgName ? `${orgName} POS` : "Kitchen POS",
   appDescription: "Point of sale and kitchen display for food service",
+
+  /**
+   * The language the UI strings are actually written in, for `<html lang>`.
+   *
+   * Deliberately NOT `locale`: that one exists so a Paris café can get "4,50 €"
+   * and a 24-hour clock, but every label in this app is still English. Claiming
+   * `lang="fr-FR"` over English text makes screen readers read it with a French
+   * voice and prompts browsers to offer a translation. Change this only if you
+   * translate the interface.
+   */
+  documentLanguage: "en",
 
   /**
    * The two workstations the app presents. Renaming one is the most common

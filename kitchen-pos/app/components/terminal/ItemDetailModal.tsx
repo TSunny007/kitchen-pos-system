@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Item, Modifier } from "../../types";
 import Modal, { CloseIcon } from "../Modal";
-import { formatCurrency, formatPriceDelta, currencyAdornment } from "../../lib/format";
+import { formatCurrency, formatPriceDelta } from "../../lib/format";
+import PriceInput from "./PriceInput";
 
 interface ItemDetailModalProps {
   item: Item;
@@ -555,22 +556,14 @@ export default function ItemDetailModal({
                               placeholder="Modifier name"
                               className="flex-1 rounded-lg border border-outline bg-transparent px-3 py-2 text-sm text-on-surface placeholder-on-surface-variant focus:border-primary focus:outline-none"
                             />
-                            <div className="flex w-28 items-center gap-1.5 rounded-lg border border-outline bg-transparent px-3 py-2 focus-within:border-primary">
-                              {currencyAdornment.position === "prefix" && (
-                                <span className="shrink-0 text-sm text-on-surface-variant">{currencyAdornment.symbol}</span>
-                              )}
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={newModifierPrice}
-                                onChange={(e) => setNewModifierPrice(e.target.value)}
-                                placeholder="0.00"
-                                className="w-full min-w-0 bg-transparent text-sm text-on-surface placeholder-on-surface-variant focus:outline-none"
-                              />
-                              {currencyAdornment.position === "suffix" && (
-                                <span className="shrink-0 text-sm text-on-surface-variant">{currencyAdornment.symbol}</span>
-                              )}
-                            </div>
+                            <PriceInput
+                              value={newModifierPrice}
+                              onChange={setNewModifierPrice}
+                              allowNegative
+                              size="sm"
+                              className="w-28"
+                              aria-label="Modifier price change"
+                            />
                           </div>
                           <div className="flex gap-2">
                             <button

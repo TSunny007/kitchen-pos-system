@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang={tenant.locale} suppressHydrationWarning>
+    <html lang={tenant.documentLanguage} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{

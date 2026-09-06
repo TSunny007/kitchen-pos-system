@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Modifier } from "../../types";
-import { formatPriceDelta, currencyAdornment } from "../../lib/format";
+import { formatPriceDelta } from "../../lib/format";
+import PriceInput from "./PriceInput";
 
 interface ModifierPickerProps {
   modifiers: Modifier[];
@@ -198,23 +199,16 @@ export default function ModifierPicker({
                       Create &quot;{searchQuery.trim()}&quot;
                     </p>
                     <div className="flex gap-2">
-                      <div className="flex flex-1 items-center gap-1.5 rounded-md border border-outline bg-transparent px-3 py-1.5 focus-within:border-primary">
-                        {currencyAdornment.position === "prefix" && (
-                          <span className="shrink-0 text-sm text-on-surface-variant">{currencyAdornment.symbol}</span>
-                        )}
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={newModifierPrice}
-                          onChange={(e) => setNewModifierPrice(e.target.value)}
-                          placeholder="0.00 (or -1.00)"
-                          className="w-full min-w-0 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none"
-                          autoFocus
-                        />
-                        {currencyAdornment.position === "suffix" && (
-                          <span className="shrink-0 text-sm text-on-surface-variant">{currencyAdornment.symbol}</span>
-                        )}
-                      </div>
+                      <PriceInput
+                        value={newModifierPrice}
+                        onChange={setNewModifierPrice}
+                        placeholder="0.00 (or -1.00)"
+                        allowNegative
+                        autoFocus
+                        size="sm"
+                        className="flex-1"
+                        aria-label="Modifier price change"
+                      />
                       <button
                         type="button"
                         onClick={handleCreateModifier}
