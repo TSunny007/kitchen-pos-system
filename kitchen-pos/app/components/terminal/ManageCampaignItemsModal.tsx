@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Item, Category, Campaign } from "../../types";
 import { formatCurrency } from "../../lib/format";
 import Modal from "../Modal";
@@ -30,21 +30,23 @@ export default function ManageCampaignItemsModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [loadingItemIds, setLoadingItemIds] = useState<Set<number>>(new Set());
 
-  // Local stock input state: item_id → string (allows empty for "no limit")
-  const [stockInputs, setStockInputs] = useState<Map<number, string>>(new Map());
+  // Local stock input state: item_id → string (allows empty for "no limit").
+  //
+  // Seeded once, on mount. This used to re-mirror `itemStocks` on every
+  // change, but these are draft text fields and `itemStocks` is rebuilt by the
+  // parent on every realtime stock update - so another terminal's sale would
+  // wipe out whatever the user was in the middle of typing. The modal is
+  // mounted only while open, so each open still starts from current stock.
+  const [stockInputs, setStockInputs] = useState<Map<number, string>>(
+    () =>
+      new Map(
+        [...itemStocks].map(([itemId, stock]) => [
+          itemId,
+          stock != null ? String(stock) : "",
+        ])
+      )
+  );
   const [savingStockIds, setSavingStockIds] = useState<Set<number>>(new Set());
-
-  // Mirror live stock into the inputs. Mount handles the initial fill; this
-  // keeps following the realtime subscription while the modal stays open, so
-  // another terminal's sale is reflected here.
-  useEffect(() => {
-    const inputs = new Map<number, string>();
-    for (const [itemId, stock] of itemStocks) {
-      inputs.set(itemId, stock != null ? String(stock) : "");
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStockInputs(inputs);
-  }, [itemStocks]);
 
   // Group items by category for the category filter count
   const itemsByCategory = useMemo(() => {
@@ -69,7 +71,9 @@ export default function ManageCampaignItemsModal({
           item.description?.toLowerCase().includes(query)
       );
     }
-    return items.sort((a, b) => a.name.localeCompare(b.name));
+    // Sort a copy: with no category filter and no search, `items` is still
+    // the `allItems` prop, and sorting in place mutates the parent's state.
+    return [...items].sort((a, b) => a.name.localeCompare(b.name));
   }, [allItems, selectedCategoryId, searchQuery]);
 
   const handleToggle = async (itemId: number) => {

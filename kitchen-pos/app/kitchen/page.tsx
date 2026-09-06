@@ -544,12 +544,6 @@ export default function KitchenPage() {
           </div>
 
           <button
-              onClick={() => setIsDisplayOptionsOpen(false)}
-              className="mt-6 w-full rounded-full bg-primary py-3 text-base font-medium text-on-primary transition-all hover:shadow-[var(--md-elevation-1)]"
-            >
-              Done
-            </button>
-          <button
             onClick={() => setIsDisplayOptionsOpen(false)}
             className="mt-6 w-full rounded-full bg-primary py-3 text-base font-medium text-on-primary transition-all hover:shadow-[var(--md-elevation-1)]"
           >

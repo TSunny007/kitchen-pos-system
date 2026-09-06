@@ -33,7 +33,6 @@ export default function OrderItemEditModal({
   );
   const [isSaving, setIsSaving] = useState(false);
 
-
   const toggleModifier = (modifierId: number) => {
     setSelectedModifierIds((prev) =>
       prev.includes(modifierId)

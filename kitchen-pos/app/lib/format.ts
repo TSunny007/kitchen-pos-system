@@ -96,6 +96,22 @@ export function formatElapsed(ms: number, zeroLabel = "Just now"): string {
  * pt-BR/BRL gives "R$" — so callers size the padding from the string rather
  * than assuming a single character on the left.
  */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Coarse "how long ago" label for an order in a list: "Just now", "5m ago",
+ * "3h ago". Past a day the relative form stops being useful ("76h 12m ago"),
+ * so it falls back to the wall-clock time the order was placed - restoring
+ * behaviour that was lost when OrderCard moved onto the shared helpers.
+ */
+export function formatTimeSince(since: string, elapsedMs: number): string {
+  const mins = Math.floor(elapsedMs / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (elapsedMs < DAY_MS) return `${Math.floor(mins / 60)}h ago`;
+  return formatClockTime(since);
+}
+
 export const currencyAdornment: { symbol: string; position: "prefix" | "suffix" } = (() => {
   const parts = currencyFormatter.formatToParts(0);
   const index = parts.findIndex((part) => part.type === "currency");
