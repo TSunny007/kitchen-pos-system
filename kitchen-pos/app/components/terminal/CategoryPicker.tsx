@@ -115,6 +115,9 @@ export default function CategoryPicker({
         handleCreateCategory();
       }
     } else if (e.key === "Escape") {
+      // This picker is rendered inside a Modal, which also closes on Escape.
+      // Dismissing the dropdown shouldn't discard the whole form behind it.
+      e.stopPropagation();
       setIsOpen(false);
       setSearchQuery("");
     }
