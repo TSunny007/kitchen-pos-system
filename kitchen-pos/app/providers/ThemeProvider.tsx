@@ -21,7 +21,6 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("system");
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
-  const [mounted, setMounted] = useState(false);
 
   // Get system preference
   const getSystemTheme = (): "light" | "dark" => {
@@ -33,18 +32,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return "light";
   };
 
-  // Initialize theme from localStorage
+  // Read the persisted choice once on mount. localStorage isn't available
+  // during SSR, so this can't be an initial-state value; the inline script in
+  // layout.tsx applies the class before paint so there's no flash.
   useEffect(() => {
     const stored = localStorage.getItem("theme") as Theme | null;
     if (stored) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTheme(stored);
     }
-    setMounted(true);
   }, []);
 
-  // Update resolved theme and apply to document
+  // Sync the resolved theme to the document element (an external system).
   useEffect(() => {
     const resolved = theme === "system" ? getSystemTheme() : theme;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setResolvedTheme(resolved);
 
     // Apply theme class to html element

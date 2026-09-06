@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../providers/AuthProvider";
 import { Campaign, Category, Order, OrderItemStatus } from "../types";
+import { aggregateItemStatus, ITEM_STATUS_CONFIG } from "../lib/orderStatus";
 import {
   getCampaigns,
   getCategories,
@@ -14,15 +15,43 @@ import {
 import ThemeToggle from "../components/ThemeToggle";
 import CampaignSelector from "../components/terminal/CampaignSelector";
 import KitchenOrderCard from "../components/kitchen/KitchenOrderCard";
+import Modal from "../components/Modal";
 import Link from "next/link";
 
-// Single source of truth for swimlane labels, shared by the column headers
-// and the toggle buttons below so they can't drift out of sync.
-const SWIMLANE_CONFIG: Record<"new" | "in_progress" | "done", { label: string }> = {
-  new: { label: "New" },
-  in_progress: { label: "Preparing" },
-  done: { label: "Ready" },
+// Single source of truth for the swimlane columns: labels come from the
+// shared status config so the headers, the toggle buttons and the kitchen
+// cards can't drift apart. The column tints and empty-state copy live here
+// because they're specific to this board layout.
+type Swimlane = "new" | "in_progress" | "done";
+
+const SWIMLANE_CONFIG: Record<
+  Swimlane,
+  { label: string; columnClass: string; dividerClass: string; badgeClass: string; emptyMessage: string }
+> = {
+  new: {
+    label: ITEM_STATUS_CONFIG.new.label,
+    columnClass: "bg-tertiary-container/30",
+    dividerClass: "border-tertiary/20",
+    badgeClass: "bg-tertiary text-on-tertiary",
+    emptyMessage: "No new orders",
+  },
+  in_progress: {
+    label: ITEM_STATUS_CONFIG.in_progress.label,
+    columnClass: "bg-secondary-container/30",
+    dividerClass: "border-secondary/20",
+    badgeClass: "bg-secondary text-on-secondary",
+    emptyMessage: "No orders in progress",
+  },
+  done: {
+    label: ITEM_STATUS_CONFIG.done.label,
+    columnClass: "bg-primary-container/30",
+    dividerClass: "border-primary/20",
+    badgeClass: "bg-primary text-on-primary",
+    emptyMessage: "No orders ready",
+  },
 };
+
+const SWIMLANES = Object.keys(SWIMLANE_CONFIG) as Swimlane[];
 
 export default function KitchenPage() {
   const router = useRouter();
@@ -40,7 +69,7 @@ export default function KitchenPage() {
   // Empty set = no filter (show all categories). Non-empty = opt-in union filter.
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(new Set());
   // Empty set = show all swimlanes/columns. Non-empty = opt-in union filter.
-  const [selectedSwimlanes, setSelectedSwimlanes] = useState<Set<"new" | "in_progress" | "done">>(new Set());
+  const [selectedSwimlanes, setSelectedSwimlanes] = useState<Set<Swimlane>>(new Set());
   const [isDisplayOptionsOpen, setIsDisplayOptionsOpen] = useState(false);
 
   // Redirect to login if not authenticated
@@ -61,10 +90,11 @@ export default function KitchenPage() {
         const campaignsData = await getCampaigns();
         setCampaigns(campaignsData);
 
-        // Select first active campaign by default
+        // Default to the first active campaign, without disturbing a
+        // selection the user has already made.
         const activeCampaign = campaignsData.find((c) => c.is_active);
-        if (activeCampaign && !selectedCampaign) {
-          setSelectedCampaign(activeCampaign);
+        if (activeCampaign) {
+          setSelectedCampaign((current) => current ?? activeCampaign);
         }
       } catch (err) {
         console.error("Error loading campaigns:", err);
@@ -216,7 +246,7 @@ export default function KitchenPage() {
   }, []);
 
   // Swimlane selection handler - toggles which status columns are shown
-  const handleSwimlaneToggle = useCallback((status: "new" | "in_progress" | "done") => {
+  const handleSwimlaneToggle = useCallback((status: Swimlane) => {
     setSelectedSwimlanes((prev) => {
       const next = new Set(prev);
       if (next.has(status)) {
@@ -232,7 +262,7 @@ export default function KitchenPage() {
     setSelectedSwimlanes(new Set());
   }, []);
 
-  const isSwimlaneVisible = (status: "new" | "in_progress" | "done") =>
+  const isSwimlaneVisible = (status: Swimlane) =>
     selectedSwimlanes.size === 0 || selectedSwimlanes.has(status);
 
   // Shown as a badge on the Display Options button, since its current
@@ -256,7 +286,7 @@ export default function KitchenPage() {
   // Group orders by the aggregate status of items in the selected categories
   // If no categories selected, group by aggregate status of ALL items (not order status)
   const ordersByItemStatus = useMemo(() => {
-    const grouped: Record<"new" | "in_progress" | "done", Order[]> = {
+    const grouped: Record<Swimlane, Order[]> = {
       new: [],
       in_progress: [],
       done: [],
@@ -277,20 +307,7 @@ export default function KitchenPage() {
 
       if (relevantItems.length === 0) return;
 
-      // Compute aggregate status for these items
-      const statuses = relevantItems.map((item) => item.status);
-      const allNew = statuses.every((s) => s === "new");
-      const allDone = statuses.every((s) => s === "done");
-      const anyInProgress = statuses.some((s) => s === "in_progress");
-      const anyDone = statuses.some((s) => s === "done");
-
-      if (allDone) {
-        grouped.done.push(order);
-      } else if (anyInProgress || anyDone) {
-        grouped.in_progress.push(order);
-      } else if (allNew) {
-        grouped.new.push(order);
-      }
+      grouped[aggregateItemStatus(relevantItems)].push(order);
     });
 
     // Sort done orders by updated_at (most recently completed first)
@@ -300,15 +317,6 @@ export default function KitchenPage() {
 
     return grouped;
   }, [filteredOrders, selectedCategoryIds]);
-
-  // Count items for each status (used in column headers)
-  const statusCounts = useMemo(() => {
-    return {
-      new: ordersByItemStatus.new.length,
-      in_progress: ordersByItemStatus.in_progress.length,
-      done: ordersByItemStatus.done.length,
-    };
-  }, [ordersByItemStatus]);
 
   // Loading state
   if (authLoading || isLoading || !user) {
@@ -424,181 +432,129 @@ export default function KitchenPage() {
 
       {/* Main Content - Order Columns by Item Status */}
       <main className="flex flex-1 gap-4 overflow-x-auto p-4">
-        {/* New Items Column */}
-        {isSwimlaneVisible("new") && (
-        <div className="flex min-w-[300px] flex-1 flex-col rounded-xl bg-tertiary-container/30 sm:min-w-[320px]">
-          <div className="flex items-center justify-between border-b border-tertiary/20 px-4 py-3">
-            <h2 className="font-semibold text-on-surface">{SWIMLANE_CONFIG.new.label}</h2>
-            <span className="rounded-full bg-tertiary px-2.5 py-0.5 text-sm font-medium text-on-tertiary">
-              {statusCounts.new}
-            </span>
-          </div>
-          <div className="flex-1 space-y-3 overflow-y-auto p-3">
-            {ordersByItemStatus.new.length === 0 ? (
-              <div className="flex h-32 items-center justify-center text-on-surface-variant">
-                <p className="text-sm">No new orders</p>
-              </div>
-            ) : (
-              ordersByItemStatus.new.map((order) => (
-                <KitchenOrderCard
-                  key={order.id}
-                  order={order}
-                  onItemStatusChange={handleItemStatusChange}
-                  filterCategoryIds={selectedCategoryIds}
-                />
-              ))
-            )}
-          </div>
-        </div>
-        )}
+        {SWIMLANES.filter(isSwimlaneVisible).map((status) => {
+          const { label, columnClass, dividerClass, badgeClass, emptyMessage } =
+            SWIMLANE_CONFIG[status];
+          const columnOrders = ordersByItemStatus[status];
 
-        {/* In Progress Column */}
-        {isSwimlaneVisible("in_progress") && (
-        <div className="flex min-w-[300px] flex-1 flex-col rounded-xl bg-secondary-container/30 sm:min-w-[320px]">
-          <div className="flex items-center justify-between border-b border-secondary/20 px-4 py-3">
-            <h2 className="font-semibold text-on-surface">{SWIMLANE_CONFIG.in_progress.label}</h2>
-            <span className="rounded-full bg-secondary px-2.5 py-0.5 text-sm font-medium text-on-secondary">
-              {statusCounts.in_progress}
-            </span>
-          </div>
-          <div className="flex-1 space-y-3 overflow-y-auto p-3">
-            {ordersByItemStatus.in_progress.length === 0 ? (
-              <div className="flex h-32 items-center justify-center text-on-surface-variant">
-                <p className="text-sm">No orders in progress</p>
+          return (
+            <div
+              key={status}
+              className={`flex min-w-[300px] flex-1 flex-col rounded-xl sm:min-w-[320px] ${columnClass}`}
+            >
+              <div className={`flex items-center justify-between border-b px-4 py-3 ${dividerClass}`}>
+                <h2 className="font-semibold text-on-surface">{label}</h2>
+                <span className={`rounded-full px-2.5 py-0.5 text-sm font-medium ${badgeClass}`}>
+                  {columnOrders.length}
+                </span>
               </div>
-            ) : (
-              ordersByItemStatus.in_progress.map((order) => (
-                <KitchenOrderCard
-                  key={order.id}
-                  order={order}
-                  onItemStatusChange={handleItemStatusChange}
-                  filterCategoryIds={selectedCategoryIds}
-                />
-              ))
-            )}
-          </div>
-        </div>
-        )}
-
-        {/* Ready Column */}
-        {isSwimlaneVisible("done") && (
-        <div className="flex min-w-[300px] flex-1 flex-col rounded-xl bg-primary-container/30 sm:min-w-[320px]">
-          <div className="flex items-center justify-between border-b border-primary/20 px-4 py-3">
-            <h2 className="font-semibold text-on-surface">{SWIMLANE_CONFIG.done.label}</h2>
-            <span className="rounded-full bg-primary px-2.5 py-0.5 text-sm font-medium text-on-primary">
-              {statusCounts.done}
-            </span>
-          </div>
-          <div className="flex-1 space-y-3 overflow-y-auto p-3">
-            {ordersByItemStatus.done.length === 0 ? (
-              <div className="flex h-32 items-center justify-center text-on-surface-variant">
-                <p className="text-sm">No orders ready</p>
+              <div className="flex-1 space-y-3 overflow-y-auto p-3">
+                {columnOrders.length === 0 ? (
+                  <div className="flex h-32 items-center justify-center text-on-surface-variant">
+                    <p className="text-sm">{emptyMessage}</p>
+                  </div>
+                ) : (
+                  columnOrders.map((order) => (
+                    <KitchenOrderCard
+                      key={order.id}
+                      order={order}
+                      onItemStatusChange={handleItemStatusChange}
+                      filterCategoryIds={selectedCategoryIds}
+                    />
+                  ))
+                )}
               </div>
-            ) : (
-              ordersByItemStatus.done.map((order) => (
-                <KitchenOrderCard
-                  key={order.id}
-                  order={order}
-                  onItemStatusChange={handleItemStatusChange}
-                  filterCategoryIds={selectedCategoryIds}
-                />
-              ))
-            )}
-          </div>
-        </div>
-        )}
+            </div>
+          );
+        })}
       </main>
 
       {/* Display Options Modal */}
-      {isDisplayOptionsOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setIsDisplayOptionsOpen(false)} />
-          <div className="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-6 shadow-[var(--md-elevation-3)] sm:rounded-3xl">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-on-surface">Display Options</h2>
-              <button
-                onClick={() => setIsDisplayOptionsOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              <div>
-                <h3 className="mb-2 text-sm font-medium text-on-surface-variant">Categories</h3>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={handleClearCategoryFilter}
-                    className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                      selectedCategoryIds.size === 0
-                        ? "bg-primary text-on-primary"
-                        : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
-                    }`}
-                  >
-                    All Categories
-                  </button>
-                  {categories
-                    .sort((a, b) => a.display_order - b.display_order)
-                    .map((category) => (
-                      <button
-                        key={category.id}
-                        onClick={() => handleCategoryToggle(category.id)}
-                        aria-pressed={selectedCategoryIds.has(category.id)}
-                        className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-                          selectedCategoryIds.has(category.id)
-                            ? "bg-secondary text-on-secondary shadow-[var(--md-elevation-1)]"
-                            : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
-                        }`}
-                      >
-                        {category.name}
-                      </button>
-                    ))}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="mb-2 text-sm font-medium text-on-surface-variant">Stages</h3>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={handleClearSwimlaneFilter}
-                    className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                      selectedSwimlanes.size === 0
-                        ? "bg-primary text-on-primary"
-                        : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
-                    }`}
-                  >
-                    All Stages
-                  </button>
-                  {(Object.keys(SWIMLANE_CONFIG) as Array<"new" | "in_progress" | "done">).map((status) => (
+      <Modal
+        isOpen={isDisplayOptionsOpen}
+        onClose={() => setIsDisplayOptionsOpen(false)}
+        title="Display Options"
+        panelClassName="max-h-[90vh] max-w-lg overflow-y-auto"
+      >
+        <div className="p-6">
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-on-surface-variant">Categories</h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleClearCategoryFilter}
+                  className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                    selectedCategoryIds.size === 0
+                      ? "bg-primary text-on-primary"
+                      : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
+                  }`}
+                >
+                  All Categories
+                </button>
+                {[...categories]
+                  .sort((a, b) => a.display_order - b.display_order)
+                  .map((category) => (
                     <button
-                      key={status}
-                      onClick={() => handleSwimlaneToggle(status)}
-                      aria-pressed={selectedSwimlanes.has(status)}
+                      key={category.id}
+                      onClick={() => handleCategoryToggle(category.id)}
+                      aria-pressed={selectedCategoryIds.has(category.id)}
                       className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-                        selectedSwimlanes.has(status)
+                        selectedCategoryIds.has(category.id)
                           ? "bg-secondary text-on-secondary shadow-[var(--md-elevation-1)]"
                           : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
                       }`}
                     >
-                      {SWIMLANE_CONFIG[status].label}
+                      {category.name}
                     </button>
                   ))}
-                </div>
               </div>
             </div>
 
-            <button
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-on-surface-variant">Stages</h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleClearSwimlaneFilter}
+                  className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                    selectedSwimlanes.size === 0
+                      ? "bg-primary text-on-primary"
+                      : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
+                  }`}
+                >
+                  All Stages
+                </button>
+                {SWIMLANES.map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => handleSwimlaneToggle(status)}
+                    aria-pressed={selectedSwimlanes.has(status)}
+                    className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                      selectedSwimlanes.has(status)
+                        ? "bg-secondary text-on-secondary shadow-[var(--md-elevation-1)]"
+                        : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
+                    }`}
+                  >
+                    {SWIMLANE_CONFIG[status].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <button
               onClick={() => setIsDisplayOptionsOpen(false)}
               className="mt-6 w-full rounded-full bg-primary py-3 text-base font-medium text-on-primary transition-all hover:shadow-[var(--md-elevation-1)]"
             >
               Done
             </button>
-          </div>
+          <button
+            onClick={() => setIsDisplayOptionsOpen(false)}
+            className="mt-6 w-full rounded-full bg-primary py-3 text-base font-medium text-on-primary transition-all hover:shadow-[var(--md-elevation-1)]"
+          >
+            Done
+          </button>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Campaign } from "../../types";
+import { CloseIcon } from "../Modal";
 
 interface CampaignSelectorProps {
   campaigns: Campaign[];
@@ -166,9 +167,7 @@ export default function CampaignSelector({
                       }}
                       className="rounded-lg px-2 py-2 text-on-surface-variant hover:bg-surface-container"
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      <CloseIcon className="h-4 w-4" />
                     </button>
                   </div>
                 ) : (

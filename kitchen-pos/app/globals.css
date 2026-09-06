@@ -39,6 +39,9 @@
   --md-success: #5A8A53;           /* Muted pistachio for success */
   --md-on-success: #FFFFFF;
   
+  --md-warning: #C77800;           /* Amber - sits between success and error */
+  --md-on-warning: #FFFFFF;
+  
   /* Elevation shadows - softer for light theme */
   --md-elevation-1: 0 1px 3px rgba(44, 42, 37, 0.08), 0 1px 2px rgba(44, 42, 37, 0.12);
   --md-elevation-2: 0 2px 6px rgba(44, 42, 37, 0.1), 0 1px 3px rgba(44, 42, 37, 0.08);
@@ -51,8 +54,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-programme);
   
   /* Material Design colors for Tailwind */
   --color-primary: var(--md-primary);
@@ -65,8 +67,14 @@
   --color-secondary-container: var(--md-secondary-container);
   --color-on-secondary-container: var(--md-on-secondary-container);
   
+  --color-tertiary: var(--md-tertiary);
+  --color-on-tertiary: var(--md-on-tertiary);
+  --color-tertiary-container: var(--md-tertiary-container);
+  --color-on-tertiary-container: var(--md-on-tertiary-container);
+  
   --color-surface: var(--md-surface);
   --color-surface-dim: var(--md-surface-dim);
+  --color-surface-bright: var(--md-surface-bright);
   --color-surface-container: var(--md-surface-container);
   --color-surface-container-lowest: var(--md-surface-container-lowest);
   --color-surface-container-low: var(--md-surface-container-low);
@@ -83,6 +91,9 @@
   --color-error-container: var(--md-error-container);
   --color-on-error-container: var(--md-on-error-container);
   --color-success: var(--md-success);
+  --color-on-success: var(--md-on-success);
+  --color-warning: var(--md-warning);
+  --color-on-warning: var(--md-on-warning);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -124,6 +135,9 @@
     
     --md-success: #A3D49A;
     --md-on-success: #1A3D16;
+    
+    --md-warning: #F0B357;
+    --md-on-warning: #452B00;
     
     --background: var(--md-surface);
     --foreground: var(--md-on-surface);
@@ -170,6 +184,9 @@
   --md-success: #A3D49A;
   --md-on-success: #1A3D16;
   
+  --md-warning: #F0B357;
+  --md-on-warning: #452B00;
+  
   --background: var(--md-surface);
   --foreground: var(--md-on-surface);
 }
@@ -178,67 +195,6 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-}
-
-/* Material Design button styles */
-.md-button {
-  border-radius: 20px;
-  padding: 10px 24px;
-  font-weight: 500;
-  font-size: 14px;
-  letter-spacing: 0.1px;
-  transition: all 0.2s ease;
-}
-
-.md-button-filled {
-  background-color: var(--md-primary);
-  color: var(--md-on-primary);
-}
-
-.md-button-filled:hover {
-  box-shadow: var(--md-elevation-1);
-}
-
-.md-button-tonal {
-  background-color: var(--md-secondary-container);
-  color: var(--md-on-secondary-container);
-}
-
-.md-button-outlined {
-  background-color: transparent;
-  border: 1px solid var(--md-outline);
-  color: var(--md-primary);
-}
-
-/* Material Design card styles */
-.md-card {
-  background-color: var(--md-surface-container-low);
-  border-radius: 12px;
-  transition: box-shadow 0.2s ease;
-}
-
-.md-card-elevated {
-  box-shadow: var(--md-elevation-1);
-}
-
-.md-card:hover {
-  box-shadow: var(--md-elevation-2);
-}
-
-/* Material Design input styles */
-.md-input {
-  background-color: transparent;
-  border: 1px solid var(--md-outline);
-  border-radius: 4px;
-  padding: 16px;
-  font-size: 16px;
-  transition: border-color 0.2s ease;
-}
-
-.md-input:focus {
-  outline: none;
-  border-color: var(--md-primary);
-  border-width: 2px;
 }
 
 /* Scrollbar styling */

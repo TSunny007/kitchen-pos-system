@@ -1,38 +1,16 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { Order, OrderItemStatus } from "../../types";
+import { aggregateItemStatus, ITEM_STATUS_CONFIG } from "../../lib/orderStatus";
+import { formatClockTime, formatElapsed } from "../../lib/format";
+import { useElapsedMs } from "../../lib/useElapsed";
 
 interface KitchenOrderCardProps {
   order: Order;
   onItemStatusChange?: (orderItemIds: number[], newStatus: OrderItemStatus) => void;
   filterCategoryIds?: Set<number>; // If non-empty, only show items in one of these categories
 }
-
-// Item status config for kitchen display
-// Kitchen flow: new → in_progress (Preparing) → done (Ready)
-const ITEM_STATUS_CONFIG: Record<OrderItemStatus, { label: string; bgClass: string; textClass: string }> = {
-  new: {
-    label: "New",
-    bgClass: "bg-tertiary-container",
-    textClass: "text-on-tertiary-container",
-  },
-  in_progress: {
-    label: "Preparing",
-    bgClass: "bg-secondary-container",
-    textClass: "text-on-secondary-container",
-  },
-  done: {
-    label: "Ready",
-    bgClass: "bg-primary-container",
-    textClass: "text-on-primary-container",
-  },
-  cancelled: {
-    label: "Cancelled",
-    bgClass: "bg-error-container",
-    textClass: "text-on-error-container",
-  },
-};
 
 // Orders backfilled by the "fix stuck in_progress orders" migration got
 // updated_at stamped with whenever that migration actually ran, not their
@@ -46,28 +24,9 @@ export default function KitchenOrderCard({
   onItemStatusChange,
   filterCategoryIds,
 }: KitchenOrderCardProps) {
-  const [elapsedTime, setElapsedTime] = useState<string>("");
-
-  const formatDuration = (ms: number, justNowLabel = "Just now"): string => {
-    const diffMins = Math.floor(ms / 60000);
-    if (diffMins < 1) return justNowLabel;
-    if (diffMins < 60) return `${diffMins}m`;
-    const diffHours = Math.floor(diffMins / 60);
-    const remainingMins = diffMins % 60;
-    return `${diffHours}h ${remainingMins}m`;
-  };
-
-  // Update elapsed time every 30 seconds while the order is still active
-  useEffect(() => {
-    const updateElapsed = () => {
-      setElapsedTime(formatDuration(Date.now() - new Date(order.created_at).getTime()));
-    };
-
-    updateElapsed();
-    const interval = setInterval(updateElapsed, 30000);
-
-    return () => clearInterval(interval);
-  }, [order.created_at]);
+  // Ticks every 30s while the order is still active; null on the first paint.
+  const elapsedMs = useElapsedMs(order.created_at);
+  const elapsedTime = elapsedMs === null ? null : formatElapsed(elapsedMs);
 
   // How long the order actually took to prep, once done - a fixed value
   // rather than a live-ticking clock, since it no longer needs to move.
@@ -75,17 +34,8 @@ export default function KitchenOrderCard({
   const prepDuration = useMemo(() => {
     const ms = new Date(order.updated_at).getTime() - new Date(order.created_at).getTime();
     if (!Number.isFinite(ms) || ms < 0 || ms > MAX_PLAUSIBLE_PREP_MS) return null;
-    return formatDuration(ms, "<1m");
+    return formatElapsed(ms, "<1m");
   }, [order.created_at, order.updated_at]);
-
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
 
   // Filter items to only show those matching the opted-in categories
   const filteredItems = useMemo(() => {
@@ -96,21 +46,11 @@ export default function KitchenOrderCard({
     );
   }, [order.order_items, filterCategoryIds]);
 
-  // Compute the aggregate status of filtered items (for display and actions)
-  const aggregateStatus = useMemo((): OrderItemStatus => {
-    if (filteredItems.length === 0) return "new";
-    
-    const statuses = filteredItems.map((item) => item.status);
-    const allNew = statuses.every((s) => s === "new");
-    const allDone = statuses.every((s) => s === "done");
-    const anyInProgress = statuses.some((s) => s === "in_progress");
-    const anyDone = statuses.some((s) => s === "done");
-
-    if (allDone) return "done";
-    if (anyInProgress || anyDone) return "in_progress";
-    if (allNew) return "new";
-    return "new";
-  }, [filteredItems]);
+  // Aggregate status of the filtered items (drives card color and actions)
+  const aggregateStatus = useMemo(
+    () => aggregateItemStatus(filteredItems),
+    [filteredItems]
+  );
 
   // Get urgency class based on elapsed time and status
   const getUrgencyClass = (): string => {
@@ -152,46 +92,7 @@ export default function KitchenOrderCard({
     onItemStatusChange([itemId], "done");
   };
 
-  // Get card border color based on aggregate status
-  const getCardBorderClass = (): string => {
-    switch (aggregateStatus) {
-      case "new":
-        return "border-tertiary";
-      case "in_progress":
-        return "border-secondary";
-      case "done":
-        return "border-primary";
-      default:
-        return "border-outline-variant";
-    }
-  };
-
-  // Get header background based on aggregate status
-  const getHeaderBgClass = (): string => {
-    switch (aggregateStatus) {
-      case "new":
-        return "bg-tertiary-container";
-      case "in_progress":
-        return "bg-secondary-container";
-      case "done":
-        return "bg-primary-container";
-      default:
-        return "bg-surface-container-high";
-    }
-  };
-
-  const getHeaderTextClass = (): string => {
-    switch (aggregateStatus) {
-      case "new":
-        return "text-on-tertiary-container";
-      case "in_progress":
-        return "text-on-secondary-container";
-      case "done":
-        return "text-on-primary-container";
-      default:
-        return "text-on-surface-variant";
-    }
-  };
+  const statusConfig = ITEM_STATUS_CONFIG[aggregateStatus];
 
   // Don't render if no items match the filter
   if (filteredItems.length === 0) {
@@ -206,30 +107,28 @@ export default function KitchenOrderCard({
   const cardBody = (
     <>
       {/* Header - Customer name, order number, time */}
-      <div className={`flex items-center justify-between rounded-t-xl px-4 py-3 ${getHeaderBgClass()}`}>
+      <div className={`flex items-center justify-between rounded-t-xl px-4 py-3 ${statusConfig.bgClass}`}>
         <div>
-          <h3 className={`text-lg font-bold ${getHeaderTextClass()}`}>
+          <h3 className={`text-lg font-bold ${statusConfig.textClass}`}>
             {order.customer_name}
           </h3>
-          <p className={`text-sm ${getHeaderTextClass()} opacity-80`}>
-            #{order.id} • {formatTime(order.created_at)}
+          <p className={`text-sm ${statusConfig.textClass} opacity-80`}>
+            #{order.id} • {formatClockTime(order.created_at)}
           </p>
         </div>
-        {(aggregateStatus !== "done" || prepDuration) && (
-          <span className={`text-sm font-medium ${getHeaderTextClass()}`}>
+        {(aggregateStatus === "done" ? prepDuration : elapsedTime) && (
+          <span className={`text-sm font-medium ${statusConfig.textClass}`}>
             ⏱ {aggregateStatus === "done" ? prepDuration : elapsedTime}
           </span>
         )}
       </div>
 
       {/* Order Items - Only showing filtered items */}
-      {filteredItems.length > 0 && (
-        <div className="divide-y divide-outline-variant">
+      <div className="divide-y divide-outline-variant">
           {filteredItems.map((orderItem) => {
             const itemStatusConfig = ITEM_STATUS_CONFIG[orderItem.status];
             const isInProgress = orderItem.status === "in_progress";
             const isDone = orderItem.status === "done";
-            const isNew = orderItem.status === "new";
 
             return (
               <div
@@ -305,18 +204,17 @@ export default function KitchenOrderCard({
               </div>
             );
           })}
-        </div>
-      )}
+      </div>
 
       {/* Footer - Status actions or completion time. New cards have no
           footer - the whole card is the "start preparing" affordance. */}
       {aggregateStatus === "done" && (
         <div className="flex items-center justify-between border-t border-outline-variant p-3">
           <span className="text-sm text-on-surface-variant">
-            Ordered: {formatTime(order.created_at)}
+            Ordered: {formatClockTime(order.created_at)}
           </span>
           <span className="text-sm font-medium text-primary">
-            Completed: {formatTime(order.updated_at)}
+            Completed: {formatClockTime(order.updated_at)}
           </span>
         </div>
       )}
@@ -330,7 +228,7 @@ export default function KitchenOrderCard({
     </>
   );
 
-  const cardClassName = `rounded-xl border-2 ${getCardBorderClass()} bg-surface-container-low shadow-[var(--md-elevation-1)] transition-all ${getUrgencyClass()}`;
+  const cardClassName = `rounded-xl border-2 ${statusConfig.borderClass} bg-surface-container-low shadow-[var(--md-elevation-1)] transition-all ${getUrgencyClass()}`;
 
   // New cards render as a real <button> so the "start preparing" action is
   // keyboard/switch-device accessible (focusable, Enter/Space-operable) for

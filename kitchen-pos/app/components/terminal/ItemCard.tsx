@@ -1,6 +1,7 @@
 "use client";
 
 import { Item } from "../../types";
+import { formatCurrency } from "../../lib/format";
 
 interface ItemCardProps {
   item: Item;
@@ -8,12 +9,6 @@ interface ItemCardProps {
 }
 
 export default function ItemCard({ item, onClick }: ItemCardProps) {
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  };
 
   const isSoldOut = item.stock === 0;
   const isLowStock =
@@ -111,7 +106,7 @@ export default function ItemCard({ item, onClick }: ItemCardProps) {
             isSoldOut ? "text-on-surface-variant" : "text-primary"
           }`}
         >
-          {formatPrice(item.base_price)}
+          {formatCurrency(item.base_price)}
         </p>
       </div>
     </button>

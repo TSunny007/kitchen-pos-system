@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Item, Modifier } from "../../types";
+import Modal, { CloseIcon } from "../Modal";
+import { formatCurrency } from "../../lib/format";
 
 interface ItemDetailModalProps {
   item: Item;
   modifiers: Modifier[];
   allModifiers?: Modifier[]; // All modifiers available for linking
-  isOpen: boolean;
   onClose: () => void;
   onAddToCart: (
     item: Item,
@@ -33,7 +34,6 @@ export default function ItemDetailModal({
   item,
   modifiers,
   allModifiers = [],
-  isOpen,
   onClose,
   onAddToCart,
   initialQuantity,
@@ -49,21 +49,15 @@ export default function ItemDetailModal({
   const maxQuantity = item.stock != null ? item.stock : Infinity;
   const isSoldOut = item.stock === 0;
 
+  // The parent mounts this only while a modal is open, so the initial* props
+  // seed state directly - the old sync effect existed only because this stayed
+  // mounted between opens.
   const [quantity, setQuantity] = useState(
     Math.min(initialQuantity ?? 1, maxQuantity || 1)
   );
   const [selectedModifiers, setSelectedModifiers] = useState<Modifier[]>(initialModifiers ?? []);
   const [notes, setNotes] = useState(initialNotes ?? "");
 
-  // Sync state when modal opens in edit mode
-  useEffect(() => {
-    if (isOpen) {
-      setQuantity(Math.min(initialQuantity ?? 1, maxQuantity || 1));
-      setSelectedModifiers(initialModifiers ?? []);
-      setNotes(initialNotes ?? "");
-    }
-  }, [isOpen, initialQuantity, initialModifiers, initialNotes]);
-  
   // Modifier management state
   const [showModifierManager, setShowModifierManager] = useState(false);
   const [isCreatingModifier, setIsCreatingModifier] = useState(false);
@@ -80,12 +74,6 @@ export default function ItemDetailModal({
   // Check if modifier management is enabled
   const canManageModifiers = onCreateModifier || onLinkModifier || onUnlinkModifier;
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  };
 
   const calculateTotal = (): number => {
     const baseTotal = item.base_price * quantity;
@@ -107,24 +95,10 @@ export default function ItemDetailModal({
   };
 
   const handleAddToCart = () => {
+    // No reset needed: the parent closes the modal, which unmounts it.
     onAddToCart(item, quantity, selectedModifiers, notes);
-    // Reset state
-    setQuantity(1);
-    setSelectedModifiers([]);
-    setNotes("");
   };
 
-  const handleClose = () => {
-    setQuantity(1);
-    setSelectedModifiers([]);
-    setNotes("");
-    setShowModifierManager(false);
-    setIsCreatingModifier(false);
-    setNewModifierName("");
-    setNewModifierPrice("0");
-    setShowDeleteConfirm(false);
-    onClose();
-  };
   
   const handleDeleteItem = async () => {
     if (!onDeleteItem) return;
@@ -133,7 +107,7 @@ export default function ItemDetailModal({
     try {
       const success = await onDeleteItem(item.id);
       if (success) {
-        handleClose();
+        onClose();
       }
     } finally {
       setIsDeleting(false);
@@ -205,18 +179,12 @@ export default function ItemDetailModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={handleClose}
-      />
-
-      {/* Modal - full width on mobile, centered card on desktop */}
-      <div className="relative z-10 max-h-[90vh] w-full overflow-hidden rounded-t-3xl bg-surface-container-lowest shadow-[var(--md-elevation-3)] sm:max-w-md sm:rounded-3xl">
+    <Modal
+      isOpen
+      onClose={onClose}
+      panelClassName="max-h-[90vh] overflow-hidden sm:max-w-md"
+    >
         <div className="max-h-[90vh] overflow-y-auto">
           {/* Header with Image */}
           <div className="relative aspect-video w-full bg-surface-container sm:aspect-video">
@@ -246,23 +214,10 @@ export default function ItemDetailModal({
             )}
             {/* Close button */}
             <button
-              onClick={handleClose}
+              onClick={onClose}
               className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-surface-container-highest/80 text-on-surface backdrop-blur-sm transition-colors hover:bg-surface-container-highest sm:right-4 sm:top-4"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <CloseIcon className="h-6 w-6" />
             </button>
           </div>
 
@@ -279,7 +234,7 @@ export default function ItemDetailModal({
                   <p className="mt-2 text-on-surface-variant">{item.description}</p>
                 )}
                 <p className="mt-2 text-xl font-semibold text-primary">
-                  {formatPrice(item.base_price)}
+                  {formatCurrency(item.base_price)}
                 </p>
               </div>
               
@@ -452,7 +407,7 @@ export default function ItemDetailModal({
                               : "text-primary"
                         }`}>
                           {modifier.price_delta > 0 ? "+" : ""}
-                          {formatPrice(modifier.price_delta)}
+                          {formatCurrency(modifier.price_delta)}
                         </span>
                       )}
                     </button>
@@ -518,7 +473,7 @@ export default function ItemDetailModal({
                             <span>{modifier.name}</span>
                             {modifier.price_delta !== 0 && (
                               <span className="opacity-70">
-                                ({modifier.price_delta > 0 ? "+" : ""}{formatPrice(modifier.price_delta)})
+                                ({modifier.price_delta > 0 ? "+" : ""}{formatCurrency(modifier.price_delta)})
                               </span>
                             )}
                             {/* Unlink button */}
@@ -528,9 +483,7 @@ export default function ItemDetailModal({
                               className="ml-1 p-0.5 hover:bg-surface-container rounded-full transition-colors"
                               title="Unlink modifier"
                             >
-                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
+                              <CloseIcon className="h-4 w-4" />
                             </button>
                             {/* Delete button */}
                             {onDeleteModifier && (
@@ -578,7 +531,7 @@ export default function ItemDetailModal({
                             {modifier.name}
                             {modifier.price_delta !== 0 && (
                               <span className="opacity-70">
-                                ({modifier.price_delta > 0 ? "+" : ""}{formatPrice(modifier.price_delta)})
+                                ({modifier.price_delta > 0 ? "+" : ""}{formatCurrency(modifier.price_delta)})
                               </span>
                             )}
                             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -683,13 +636,12 @@ export default function ItemDetailModal({
             >
               <span>{isEditMode ? "Update Item" : "Add to Order"}</span>
               <span className="rounded-full bg-on-primary/20 px-3 py-1">
-                {formatPrice(calculateTotal())}
+                {formatCurrency(calculateTotal())}
               </span>
             </button>
           )}
         </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -21,23 +21,6 @@ export async function signIn(email: string, password: string) {
 }
 
 /**
- * Sign up with email and password
- */
-export async function signUp(email: string, password: string) {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
-
-  if (error) {
-    console.error("Sign up error:", error);
-    throw error;
-  }
-
-  return data;
-}
-
-/**
  * Sign out the current user
  */
 export async function signOut() {

@@ -2,9 +2,10 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Item, Category, Campaign } from "../../types";
+import { formatCurrency } from "../../lib/format";
+import Modal from "../Modal";
 
 interface ManageCampaignItemsModalProps {
-  isOpen: boolean;
   campaign: Campaign | null;
   allItems: Item[];
   campaignItemIds: Set<number>;
@@ -16,7 +17,6 @@ interface ManageCampaignItemsModalProps {
 }
 
 export default function ManageCampaignItemsModal({
-  isOpen,
   campaign,
   allItems,
   campaignItemIds,
@@ -34,16 +34,17 @@ export default function ManageCampaignItemsModal({
   const [stockInputs, setStockInputs] = useState<Map<number, string>>(new Map());
   const [savingStockIds, setSavingStockIds] = useState<Set<number>>(new Set());
 
-  // Sync stock inputs when modal opens or itemStocks changes
+  // Mirror live stock into the inputs. Mount handles the initial fill; this
+  // keeps following the realtime subscription while the modal stays open, so
+  // another terminal's sale is reflected here.
   useEffect(() => {
-    if (isOpen) {
-      const inputs = new Map<number, string>();
-      for (const [itemId, stock] of itemStocks) {
-        inputs.set(itemId, stock != null ? String(stock) : "");
-      }
-      setStockInputs(inputs);
+    const inputs = new Map<number, string>();
+    for (const [itemId, stock] of itemStocks) {
+      inputs.set(itemId, stock != null ? String(stock) : "");
     }
-  }, [isOpen, itemStocks]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStockInputs(inputs);
+  }, [itemStocks]);
 
   // Group items by category for the category filter count
   const itemsByCategory = useMemo(() => {
@@ -123,38 +124,19 @@ export default function ManageCampaignItemsModal({
   const linkedCount = filteredItems.filter((item) => campaignItemIds.has(item.id)).length;
   const totalCount = filteredItems.length;
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-
-      {/* Modal */}
-      <div className="relative z-10 flex h-[85vh] w-full max-w-2xl flex-col rounded-3xl bg-surface-container-lowest shadow-[var(--md-elevation-3)]">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-outline-variant p-6">
-          <div>
-            <h2 className="text-xl font-semibold text-on-surface">
-              Manage Campaign Items
-            </h2>
-            {campaign && (
-              <p className="mt-1 text-sm text-on-surface-variant">
-                {campaign.name} • {linkedCount} of {totalCount} items selected
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container"
-          >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="centered"
+      title="Manage Campaign Items"
+      subtitle={
+        campaign
+          ? `${campaign.name} • ${linkedCount} of ${totalCount} items selected`
+          : undefined
+      }
+      panelClassName="flex h-[85vh] max-w-2xl flex-col"
+    >
         {/* Filters */}
         <div className="border-b border-outline-variant p-4">
           <div className="flex flex-wrap gap-3">
@@ -271,7 +253,7 @@ export default function ManageCampaignItemsModal({
                           </span>
                           <span className={isLinked ? "text-on-primary-container/70" : "text-on-surface-variant"}>•</span>
                           <span className={isLinked ? "text-on-primary-container/70" : "text-on-surface-variant"}>
-                            ${item.base_price.toFixed(2)}
+                            {formatCurrency(item.base_price)}
                           </span>
                         </div>
                       </div>
@@ -333,7 +315,6 @@ export default function ManageCampaignItemsModal({
             Done
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
