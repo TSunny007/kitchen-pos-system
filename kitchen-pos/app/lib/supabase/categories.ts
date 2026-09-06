@@ -22,7 +22,9 @@ export async function getCategories(): Promise<Category[]> {
  * Create a new category
  */
 export async function createCategory(
-  category: Omit<Category, "id" | "created_at">
+  category: Omit<Category, "id" | "created_at" | "requires_label"> & {
+    requires_label?: boolean;
+  }
 ): Promise<Category> {
   const { data, error } = await supabase
     .from("categories")

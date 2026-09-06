@@ -297,11 +297,20 @@ export async function updateMultipleOrderItemsStatus(
 ): Promise<void> {
   if (orderItemIds.length === 0) return;
 
-  // Get order_ids for all items
-  const { data: items, error: fetchError } = await supabase
-    .from("order_items")
-    .select("id, status, order_id")
-    .in("id", orderItemIds);
+  // Get order_ids for all items. When transitioning to in_progress, also
+  // pull each item's category label flag, to decide which items need a
+  // Cup Label print job (see below) - skip that join otherwise, since
+  // nothing else needs it.
+  const { data: items, error: fetchError } =
+    newStatus === "in_progress"
+      ? await supabase
+          .from("order_items")
+          .select("id, status, order_id, item:items(category:categories(requires_label))")
+          .in("id", orderItemIds)
+      : await supabase
+          .from("order_items")
+          .select("id, status, order_id")
+          .in("id", orderItemIds);
 
   if (fetchError) {
     console.error("Error fetching order items:", fetchError);
@@ -333,6 +342,32 @@ export async function updateMultipleOrderItemsStatus(
   if (eventError) {
     console.error("Error logging status events:", eventError);
     // Don't throw - the update succeeded
+  }
+
+  // Queue Cup Label print jobs for items entering in_progress whose
+  // category requires one. Fire-and-forget: a failure here must not roll
+  // back the status update that already succeeded, and staff shouldn't
+  // wait on it either - same rationale as the status events insert above.
+  if (newStatus === "in_progress") {
+    type ItemWithLabelFlag = {
+      id: number;
+      item: { category: { requires_label: boolean } | null } | null;
+    };
+
+    const printJobRows = (items as unknown as ItemWithLabelFlag[])
+      .filter((item) => item.item?.category?.requires_label === true)
+      .map((item) => ({ order_item_id: item.id }));
+
+    if (printJobRows.length > 0) {
+      supabase
+        .from("print_jobs")
+        .insert(printJobRows)
+        .then(({ error: printJobError }) => {
+          if (printJobError) {
+            console.error("Error queuing print jobs:", printJobError);
+          }
+        });
+    }
   }
 
   // Update parent orders for all affected orders

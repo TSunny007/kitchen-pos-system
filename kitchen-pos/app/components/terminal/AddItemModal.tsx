@@ -23,6 +23,7 @@ interface AddItemModalProps {
   }) => Promise<void>;
   onCreateCategory?: (name: string) => Promise<Category | null>;
   onDeleteCategory?: (categoryId: number) => Promise<boolean>;
+  onToggleCategoryRequiresLabel?: (categoryId: number, requiresLabel: boolean) => Promise<boolean>;
   onCreateModifier?: (data: { name: string; price_delta: number }) => Promise<Modifier | null>;
 }
 
@@ -34,6 +35,7 @@ export default function AddItemModal({
   onAddItem,
   onCreateCategory,
   onDeleteCategory,
+  onToggleCategoryRequiresLabel,
   onCreateModifier,
 }: AddItemModalProps) {
   const [name, setName] = useState("");
@@ -125,6 +127,7 @@ export default function AddItemModal({
               onSelectCategory={setCategoryId}
               onCreateCategory={onCreateCategory}
               onDeleteCategory={onDeleteCategory}
+              onToggleCategoryRequiresLabel={onToggleCategoryRequiresLabel}
             />
           </div>
 
