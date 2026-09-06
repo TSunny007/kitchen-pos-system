@@ -20,28 +20,6 @@ export async function getCampaigns(): Promise<Campaign[]> {
 }
 
 /**
- * Fetch a single campaign by ID
- */
-export async function getCampaignById(id: number): Promise<Campaign | null> {
-  const { data, error } = await supabase
-    .from("campaigns")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (error) {
-    if (error.code === "PGRST116") {
-      // No rows returned
-      return null;
-    }
-    console.error("Error fetching campaign:", error);
-    throw error;
-  }
-
-  return data;
-}
-
-/**
  * Create a new campaign
  */
 export async function createCampaign(
@@ -83,17 +61,3 @@ export async function updateCampaign(
   return data;
 }
 
-/**
- * Deactivate a campaign (soft delete)
- */
-export async function deactivateCampaign(id: number): Promise<void> {
-  const { error } = await supabase
-    .from("campaigns")
-    .update({ is_active: false })
-    .eq("id", id);
-
-  if (error) {
-    console.error("Error deactivating campaign:", error);
-    throw error;
-  }
-}

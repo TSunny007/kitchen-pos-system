@@ -26,27 +26,6 @@ export async function getItems(categoryId?: number): Promise<Item[]> {
 }
 
 /**
- * Fetch a single item by ID with its category
- */
-export async function getItemById(id: number): Promise<Item | null> {
-  const { data, error } = await supabase
-    .from("items")
-    .select("*, category:categories(*)")
-    .eq("id", id)
-    .single();
-
-  if (error) {
-    if (error.code === "PGRST116") {
-      return null;
-    }
-    console.error("Error fetching item:", error);
-    throw error;
-  }
-
-  return data;
-}
-
-/**
  * Create a new item
  */
 export async function createItem(
@@ -157,28 +136,6 @@ export async function createModifier(
 
   if (error) {
     console.error("Error creating modifier:", error);
-    throw error;
-  }
-
-  return data;
-}
-
-/**
- * Update an existing modifier
- */
-export async function updateModifier(
-  id: number,
-  updates: Partial<Omit<Modifier, "id" | "created_at" | "updated_at">>
-): Promise<Modifier> {
-  const { data, error } = await supabase
-    .from("modifiers")
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error updating modifier:", error);
     throw error;
   }
 

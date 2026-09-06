@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Campaign, Category, Item, CartItem, Modifier, Order, OrderItem, OrderStatus } from "../types";
+import { Campaign, Category, Item, CartItem, Modifier, Order, OrderItem } from "../types";
 import CampaignSelector from "../components/terminal/CampaignSelector";
 import CategoryTabs from "../components/terminal/CategoryTabs";
 import ItemGrid from "../components/terminal/ItemGrid";
@@ -26,7 +26,6 @@ import {
   createOrder,
   getRecentOrders,
   subscribeToOrders,
-  updateOrderStatus,
   updateOrderItem,
   deleteOrderItem,
   getOrderById,
@@ -44,6 +43,7 @@ import {
   subscribeToCampaignItemStock,
 } from "../lib/supabase";
 import AddItemModal from "../components/terminal/AddItemModal";
+import { formatCurrency } from "../lib/format";
 
 export default function TerminalPage() {
   const router = useRouter();
@@ -116,9 +116,10 @@ export default function TerminalPage() {
         const campaignsData = await getCampaigns();
         setCampaigns(campaignsData);
 
-        // Select first campaign by default if none selected
-        if (campaignsData.length > 0 && !selectedCampaign) {
-          setSelectedCampaign(campaignsData[0]);
+        // Default to the first campaign, without disturbing a selection the
+        // user has already made.
+        if (campaignsData.length > 0) {
+          setSelectedCampaign((current) => current ?? campaignsData[0]);
         }
       } catch (err) {
         console.error("Error loading campaigns:", err);
@@ -332,55 +333,44 @@ export default function TerminalPage() {
     }
   };
 
-  // Recent orders handlers
-  const loadRecentOrders = useCallback(async (reset = false) => {
+  // Recent orders handlers.
+  //
+  // The page to fetch is passed in rather than read from state: this used to
+  // be a `reset` flag plus an effect watching `ordersPage`, which meant
+  // "load more" set state, an effect observed it, and the loader read it back
+  // - a cascade that forced `loadRecentOrders` out of both effects' dep
+  // arrays to avoid a loop. Paging is now driven straight from the handler.
+  const loadOrdersPage = useCallback(async (page: number) => {
     if (!selectedCampaign) return;
-    
+
     setIsLoadingOrders(true);
     try {
-      const page = reset ? 1 : ordersPage;
       const result = await getRecentOrders(selectedCampaign.id, {
         page,
         pageSize: 10,
       });
-      
-      if (reset) {
-        setRecentOrders(result.orders);
-        setOrdersPage(1);
-      } else {
-        setRecentOrders((prev) => [...prev, ...result.orders]);
-      }
+
+      setRecentOrders((prev) =>
+        page === 1 ? result.orders : [...prev, ...result.orders]
+      );
+      setOrdersPage(page);
       setHasMoreOrders(result.hasMore);
     } catch (err) {
       console.error("Error loading recent orders:", err);
     } finally {
       setIsLoadingOrders(false);
     }
-  }, [selectedCampaign, ordersPage]);
+  }, [selectedCampaign]);
 
   const handleLoadMoreOrders = useCallback(() => {
     if (!isLoadingOrders && hasMoreOrders) {
-      setOrdersPage((prev) => prev + 1);
+      loadOrdersPage(ordersPage + 1);
     }
-  }, [isLoadingOrders, hasMoreOrders]);
+  }, [isLoadingOrders, hasMoreOrders, ordersPage, loadOrdersPage]);
 
   const handleRefreshOrders = useCallback(() => {
-    loadRecentOrders(true);
-  }, [loadRecentOrders]);
-
-  const handleOrderStatusChange = useCallback(async (orderId: number, newStatus: OrderStatus) => {
-    try {
-      await updateOrderStatus(orderId, newStatus);
-      // Update local state
-      setRecentOrders((prev) =>
-        prev.map((order) =>
-          order.id === orderId ? { ...order, status: newStatus } : order
-        )
-      );
-    } catch (err) {
-      console.error("Error updating order status:", err);
-    }
-  }, []);
+    loadOrdersPage(1);
+  }, [loadOrdersPage]);
 
   // Handle editing an order item
   const handleEditOrderItem = useCallback(async (orderItem: OrderItem) => {
@@ -449,19 +439,15 @@ export default function TerminalPage() {
     }
   }, [recentOrders]);
 
-  // Load recent orders when campaign changes
+  // Load the first page whenever the campaign changes. Fetching on a param
+  // change is the intended use of an effect; the synchronous loading flag
+  // inside the loader is what trips set-state-in-effect, not a render cascade.
   useEffect(() => {
     if (selectedCampaign) {
-      loadRecentOrders(true);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadOrdersPage(1);
     }
-  }, [selectedCampaign]);
-
-  // Load more orders when page changes
-  useEffect(() => {
-    if (ordersPage > 1) {
-      loadRecentOrders(false);
-    }
-  }, [ordersPage]);
+  }, [selectedCampaign, loadOrdersPage]);
 
   // Subscribe to order updates for real-time updates
   useEffect(() => {
@@ -861,7 +847,7 @@ export default function TerminalPage() {
         </svg>
         {cartItems.length > 0 && (
           <span className="font-medium">
-            {cartItems.length} · ${calculateTotal().toFixed(2)}
+            {cartItems.length} · {formatCurrency(calculateTotal())}
           </span>
         )}
       </button>
@@ -885,7 +871,6 @@ export default function TerminalPage() {
         hasMoreOrders={hasMoreOrders}
         onLoadMoreOrders={handleLoadMoreOrders}
         onRefreshOrders={handleRefreshOrders}
-        onOrderStatusChange={handleOrderStatusChange}
         onEditOrderItem={handleEditOrderItem}
         onDeleteOrderItem={handleDeleteOrderItem}
       />
@@ -894,12 +879,11 @@ export default function TerminalPage() {
       {/* onDeleteItem is only passed when adding a new item from the menu
           grid - editing a cart line shouldn't offer "delete this menu item
           campaign-wide" as an option (see editingCartItem below). */}
-      {selectedItem && (
+      {selectedItem && isModalOpen && (
         <ItemDetailModal
           item={selectedItem}
           modifiers={itemModifiers}
           allModifiers={allModifiers}
-          isOpen={isModalOpen}
           onClose={() => {
             setIsModalOpen(false);
             setSelectedItem(null);
@@ -919,11 +903,11 @@ export default function TerminalPage() {
         />
       )}
 
-      {/* Add Item Modal */}
+      {/* Add Item Modal - mounted only while open so its form starts fresh */}
+      {isAddItemModalOpen && (
       <AddItemModal
         categories={categories}
         modifiers={allModifiers}
-        isOpen={isAddItemModalOpen}
         selectedCategoryId={selectedCategory?.id}
         onClose={() => setIsAddItemModalOpen(false)}
         onAddItem={async (itemData) => {
@@ -946,32 +930,35 @@ export default function TerminalPage() {
         onDeleteCategory={handleDeleteCategory}
         onCreateModifier={handleCreateModifier}
       />
+      )}
 
-      {/* Order Item Edit Modal */}
-      <OrderItemEditModal
-        orderItem={editingOrderItem}
-        availableModifiers={editingOrderItemModifiers}
-        isOpen={isOrderItemEditModalOpen}
-        onClose={() => {
-          setIsOrderItemEditModalOpen(false);
-          setEditingOrderItem(null);
-          setEditingOrderItemModifiers([]);
-        }}
-        onSave={handleSaveOrderItem}
-      />
+      {/* Order Item Edit Modal - mounted only while an item is being edited */}
+      {isOrderItemEditModalOpen && editingOrderItem && (
+        <OrderItemEditModal
+          orderItem={editingOrderItem}
+          availableModifiers={editingOrderItemModifiers}
+          onClose={() => {
+            setIsOrderItemEditModalOpen(false);
+            setEditingOrderItem(null);
+            setEditingOrderItemModifiers([]);
+          }}
+          onSave={handleSaveOrderItem}
+        />
+      )}
 
       {/* Manage Campaign Items Modal */}
-      <ManageCampaignItemsModal
-        isOpen={isManageItemsModalOpen}
-        campaign={selectedCampaign}
-        allItems={allItems}
-        campaignItemIds={campaignItemIds}
-        itemStocks={itemStocks}
-        categories={categories}
-        onClose={() => setIsManageItemsModalOpen(false)}
-        onToggleItem={handleToggleItemCampaign}
-        onUpdateStock={handleUpdateItemStock}
-      />
+      {isManageItemsModalOpen && (
+        <ManageCampaignItemsModal
+          campaign={selectedCampaign}
+          allItems={allItems}
+          campaignItemIds={campaignItemIds}
+          itemStocks={itemStocks}
+          categories={categories}
+          onClose={() => setIsManageItemsModalOpen(false)}
+          onToggleItem={handleToggleItemCampaign}
+          onUpdateStock={handleUpdateItemStock}
+        />
+      )}
     </div>
   );
 }

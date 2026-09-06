@@ -7,7 +7,11 @@ export default function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
+  // Hydration guard: the icon depends on resolvedTheme, which is only known
+  // in the browser. Rendering a same-size placeholder until mount avoids both
+  // a hydration mismatch and a layout shift.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 

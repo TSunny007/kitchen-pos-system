@@ -19,27 +19,6 @@ export async function getCategories(): Promise<Category[]> {
 }
 
 /**
- * Fetch a single category by ID
- */
-export async function getCategoryById(id: number): Promise<Category | null> {
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (error) {
-    if (error.code === "PGRST116") {
-      return null;
-    }
-    console.error("Error fetching category:", error);
-    throw error;
-  }
-
-  return data;
-}
-
-/**
  * Create a new category
  */
 export async function createCategory(

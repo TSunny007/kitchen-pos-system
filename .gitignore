@@ -1,3 +1,6 @@
 .vscode
 .DS_Store
 Thumbs.db
+
+# Claude Code worktrees (local scratch, never committed)
+.claude/worktrees/

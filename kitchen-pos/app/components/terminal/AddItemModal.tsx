@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Category, Modifier } from "../../types";
 import CategoryPicker from "./CategoryPicker";
 import ModifierPicker from "./ModifierPicker";
+import Modal from "../Modal";
 
 interface AddItemModalProps {
-  isOpen: boolean;
   categories: Category[];
   modifiers: Modifier[];
   selectedCategoryId?: number;
@@ -26,7 +26,6 @@ interface AddItemModalProps {
 }
 
 export default function AddItemModal({
-  isOpen,
   categories,
   modifiers,
   selectedCategoryId,
@@ -45,13 +44,6 @@ export default function AddItemModal({
   const [noPrepNeeded, setNoPrepNeeded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Update category when selectedCategoryId prop changes
-  useEffect(() => {
-    if (selectedCategoryId) {
-      setCategoryId(selectedCategoryId);
-    }
-  }, [selectedCategoryId]);
 
   const handleToggleModifier = (modifierId: number) => {
     setSelectedModifierIds((prev) =>
@@ -88,15 +80,7 @@ export default function AddItemModal({
         modifierIds: selectedModifierIds,
         no_prep_needed: noPrepNeeded,
       });
-      // Reset form
-      setName("");
-      setDescription("");
-      setPrice("");
-      setImageUrl("");
-      setCategoryId(selectedCategoryId);
-      setSelectedModifierIds([]);
-      setNoPrepNeeded(false);
-      onClose();
+      onClose(); // unmounts, discarding form state
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create item");
     } finally {
@@ -104,41 +88,14 @@ export default function AddItemModal({
     }
   };
 
-  const handleClose = () => {
-    setName("");
-    setDescription("");
-    setPrice("");
-    setImageUrl("");
-    setCategoryId(selectedCategoryId);
-    setSelectedModifierIds([]);
-    setNoPrepNeeded(false);
-    setError(null);
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
-
-      {/* Modal */}
-      <div className="relative z-10 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-6 shadow-[var(--md-elevation-3)] sm:rounded-3xl">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-on-surface">Add New Item</h2>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container"
-          >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
+    return (
+    <Modal
+      isOpen
+      onClose={onClose}
+      title="Add New Item"
+      panelClassName="max-h-[90vh] max-w-md overflow-y-auto"
+    >
+      <div className="p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}
           <div>
@@ -306,7 +263,7 @@ export default function AddItemModal({
           <div className="flex gap-3 pt-2">
             <button
               type="button"
-              onClick={handleClose}
+              onClick={onClose}
               className="flex-1 rounded-full border border-outline py-3 font-medium text-on-surface transition-colors hover:bg-surface-container"
               disabled={isSubmitting}
             >
@@ -322,6 +279,6 @@ export default function AddItemModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

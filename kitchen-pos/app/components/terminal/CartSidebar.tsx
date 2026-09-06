@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { CartItem, Order, OrderItem, OrderStatus } from "../../types";
+import { CartItem, Order, OrderItem } from "../../types";
 import RecentOrders from "./RecentOrders";
+import { formatCurrency } from "../../lib/format";
+import { CloseIcon } from "../Modal";
 
 type SidebarTab = "cart" | "orders";
 
@@ -25,7 +27,6 @@ interface CartSidebarProps {
   hasMoreOrders?: boolean;
   onLoadMoreOrders?: () => void;
   onRefreshOrders?: () => void;
-  onOrderStatusChange?: (orderId: number, newStatus: OrderStatus) => void;
   onEditOrderItem?: (orderItem: OrderItem) => void;
   onDeleteOrderItem?: (orderItemId: number) => void;
 }
@@ -48,19 +49,12 @@ export default function CartSidebar({
   hasMoreOrders = false,
   onLoadMoreOrders,
   onRefreshOrders,
-  onOrderStatusChange,
   onEditOrderItem,
   onDeleteOrderItem,
 }: CartSidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab>("cart");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  };
 
   const calculateItemTotal = (cartItem: CartItem): number => {
     const baseTotal = cartItem.item.base_price * cartItem.quantity;
@@ -95,20 +89,7 @@ export default function CartSidebar({
               onClick={onClose}
               className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high lg:hidden"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <CloseIcon className="h-6 w-6" />
             </button>
 
             {/* Tab buttons */}
@@ -321,7 +302,7 @@ export default function CartSidebar({
                         </div>
 
                         <span className="font-semibold text-on-surface">
-                          {formatPrice(calculateItemTotal(cartItem))}
+                          {formatCurrency(calculateItemTotal(cartItem))}
                         </span>
                       </div>
                     </div>
@@ -335,7 +316,7 @@ export default function CartSidebar({
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-lg font-medium text-on-surface">Total</span>
                 <span className="text-2xl font-bold text-on-surface">
-                  {formatPrice(total)}
+                  {formatCurrency(total)}
                 </span>
               </div>
               <button
@@ -359,7 +340,6 @@ export default function CartSidebar({
             isLoading={isLoadingOrders}
             hasMore={hasMoreOrders}
             onLoadMore={onLoadMoreOrders || (() => {})}
-            onStatusChange={onOrderStatusChange}
             onRefresh={onRefreshOrders}
             onEditItem={onEditOrderItem}
             onDeleteItem={onDeleteOrderItem}

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Modifier } from "../../types";
+import { formatCurrency } from "../../lib/format";
 
 interface ModifierPickerProps {
   modifiers: Modifier[];
@@ -58,12 +59,6 @@ export default function ModifierPicker({
     }
   }, [isOpen]);
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  };
 
   const handleCreateModifier = async () => {
     if (!onCreateModifier || !searchQuery.trim()) return;
@@ -115,7 +110,7 @@ export default function ModifierPicker({
                 {modifier.name}
                 {modifier.price_delta !== 0 && (
                   <span className="opacity-70">
-                    ({modifier.price_delta > 0 ? "+" : ""}{formatPrice(modifier.price_delta)})
+                    ({modifier.price_delta > 0 ? "+" : ""}{formatCurrency(modifier.price_delta)})
                   </span>
                 )}
               </span>
@@ -175,7 +170,7 @@ export default function ModifierPicker({
                     <div className="flex items-center gap-2">
                       {modifier.price_delta !== 0 && (
                         <span className="text-on-surface-variant">
-                          {modifier.price_delta > 0 ? "+" : ""}{formatPrice(modifier.price_delta)}
+                          {modifier.price_delta > 0 ? "+" : ""}{formatCurrency(modifier.price_delta)}
                         </span>
                       )}
                       {isSelected && (

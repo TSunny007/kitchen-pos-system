@@ -1,84 +1,34 @@
 "use client";
 
 import { useState } from "react";
-import { Order, OrderItem, OrderStatus } from "../../types";
+import { Order, OrderItem } from "../../types";
+import { formatCurrency } from "../../lib/format";
+import { formatClockTime, formatElapsed } from "../../lib/format";
+import { useElapsedMs } from "../../lib/useElapsed";
 
 interface OrderCardProps {
   order: Order;
-  onStatusChange?: (orderId: number, newStatus: OrderStatus) => void;
   onEditItem?: (orderItem: OrderItem) => void;
   onDeleteItem?: (orderItemId: number) => void;
-  showActions?: boolean;
   compact?: boolean;
   editable?: boolean;
 }
 
-const STATUS_CONFIG: Record<OrderStatus, { label: string; bgClass: string; textClass: string }> = {
-  new: {
-    label: "New",
-    bgClass: "bg-tertiary-container",
-    textClass: "text-on-tertiary-container",
-  },
-  in_progress: {
-    label: "In Progress",
-    bgClass: "bg-secondary-container",
-    textClass: "text-on-secondary-container",
-  },
-  completed: {
-    label: "Completed",
-    bgClass: "bg-primary-container",
-    textClass: "text-on-primary-container",
-  },
-  cancelled: {
-    label: "Cancelled",
-    bgClass: "bg-error-container",
-    textClass: "text-on-error-container",
-  },
-};
-
 export default function OrderCard({
   order,
-  onStatusChange,
   onEditItem,
   onDeleteItem,
-  showActions = false,
   compact = false,
   editable = false,
 }: OrderCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  };
+  const elapsedMs = useElapsedMs(order.created_at);
+  const elapsed = elapsedMs === null ? null : formatElapsed(elapsedMs);
+  const timeSince =
+    elapsed === null || elapsed === "Just now" ? elapsed : `${elapsed} ago`;
 
-  const getTimeSince = (dateString: string) => {
-    const now = new Date();
-    const created = new Date(dateString);
-    const diffMs = now.getTime() - created.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
 
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return created.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
 
   const calculateItemPrice = (orderItem: OrderItem): number => {
     const basePrice = orderItem.item?.base_price || 0;
@@ -89,12 +39,6 @@ export default function OrderCard({
     return (basePrice + modifiersPrice) * orderItem.quantity;
   };
 
-  // Fallback for legacy statuses that may still exist in the database
-  const statusConfig = STATUS_CONFIG[order.status] || {
-    label: order.status,
-    bgClass: "bg-surface-container-high",
-    textClass: "text-on-surface-variant",
-  };
   const canEdit = editable && (order.status === "new" || order.status === "in_progress");
   const itemCount = order.order_items?.length || 0;
   
@@ -122,7 +66,7 @@ export default function OrderCard({
             )}
           </div>
           <p className="text-xs text-on-surface-variant">
-            #{order.id} • {getTimeSince(order.created_at)}
+            #{order.id} • {timeSince}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -171,7 +115,7 @@ export default function OrderCard({
                   )}
                 </span>
                 <span className="shrink-0 text-on-surface-variant">
-                  {formatPrice(calculateItemPrice(orderItem))}
+                  {formatCurrency(calculateItemPrice(orderItem))}
                 </span>
               </div>
             ))}
@@ -229,7 +173,7 @@ export default function OrderCard({
                             >
                               <span>+ {mod.label}</span>
                               {mod.price_delta !== 0 && (
-                                <span>{formatPrice(mod.price_delta)}</span>
+                                <span>{formatCurrency(mod.price_delta)}</span>
                               )}
                             </div>
                           ))}
@@ -247,7 +191,7 @@ export default function OrderCard({
                   
                   <div className="flex flex-col items-end gap-1">
                     <span className="font-semibold text-on-surface">
-                      {formatPrice(calculateItemPrice(orderItem))}
+                      {formatCurrency(calculateItemPrice(orderItem))}
                     </span>
                     
                     {/* Edit/Delete buttons */}
@@ -329,15 +273,15 @@ export default function OrderCard({
         <div>
           <p className="text-xs text-on-surface-variant">Total</p>
           <span className="text-lg font-bold text-on-surface">
-            {formatPrice(order.subtotal)}
+            {formatCurrency(order.subtotal)}
           </span>
         </div>
 
         {/* Time info */}
         <div className="text-right text-xs text-on-surface-variant">
-          <p>Ordered: {formatTime(order.created_at)}</p>
+          <p>Ordered: {formatClockTime(order.created_at)}</p>
           {isCompleted && order.updated_at && (
-            <p className="text-primary font-medium">Completed: {formatTime(order.updated_at)}</p>
+            <p className="text-primary font-medium">Completed: {formatClockTime(order.updated_at)}</p>
           )}
         </div>
       </div>

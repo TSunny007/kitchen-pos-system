@@ -35,7 +35,7 @@ echo 'export NODE_EXTRA_CA_CERTS="/opt/homebrew/opt/ca-certificates/share/ca-cer
    vercel env pull .env.local
    ```
    This writes `.env.local` (gitignored) with:
-   - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — connect to the **real, shared Supabase project** (production data: real orders, real stock counts). There is currently no local/sandboxed Supabase option wired up for this app.
+   - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — connect to the **real, shared Supabase project** (production data: real orders, real stock counts). To point at a separate sandbox project instead, see [Sandbox vs production](#sandbox-vs-production) below.
    - `NEXT_PUBLIC_ORG_NAME` — display name shown in the UI.
    - `SUPABASE_KEY`, `SUPABASE_PROJECT_ID` — see caveat below.
    - `VERCEL_OIDC_TOKEN` — used by the Vercel SDK/OIDC, unrelated to Supabase.
@@ -54,13 +54,47 @@ echo 'export NODE_EXTRA_CA_CERTS="/opt/homebrew/opt/ca-certificates/share/ca-cer
 
 ## Known caveats
 
-- **`SUPABASE_KEY` (from `vercel env pull`) is just a duplicate of the anon key, not a service-role key.** `app/lib/supabase/server.ts` expects `SUPABASE_SERVICE_ROLE_KEY`, which isn't configured in Vercel at all — it's not merely a naming mismatch, the credential itself doesn't exist there yet. `createServerClient()` isn't called anywhere in the app today (everything runs client-side against the anon key + RLS policies), so this is harmless for normal usage. See the setup step above for adding a real service-role key when you need one.
-- **You're developing against production data.** There's no seed data or local Postgres wired up, despite the migrations living in `../supabase/migrations`. Be deliberate about test orders / stock edits.
+- **`SUPABASE_KEY` (from `vercel env pull`) is just a duplicate of the anon key, not a service-role key.** No service-role credential is configured in Vercel at all. The app never needs one — every page is a client component running against the publishable/anon key plus RLS policies — but migrations and backfills do; see the setup step above for adding your own.
+- **`npm run dev` talks to whichever project `.env.local` points at — by default, production.** Use `make dev-sandbox` from the repo root to work against the sandbox project instead. There's still no local Postgres or seed data, so a sandbox project has to be migrated and populated by hand.
 - **Toolchain versions are pinned slightly behind "latest".** `eslint` is pinned to `^9.39.5` and `typescript` to `^5.9.3` because `eslint-config-next@16.3.0`'s bundled `typescript-eslint` doesn't yet support ESLint 10 or TypeScript 7. Check if that's been resolved upstream before bumping either.
+
+## Sandbox vs production
+
+The `Makefile` at the repo root runs the app and migrations against either of two
+Supabase projects, so you don't have to develop against live orders.
+
+One-time setup: copy `.env.sandbox.example` and `.env.prod.example` to
+`.env.sandbox` / `.env.prod` and fill in each project's URL and key. Each target
+copies the selected file over `.env.local` (backing up the previous one to
+`.env.local.bak`), since that's the file Next.js always loads.
+
+```sh
+make help            # list every target
+make dev-sandbox     # dev server against the sandbox project
+make dev-prod        # dev server against production
+```
 
 ## Database migrations
 
-Schema changes live in `../supabase/migrations` and deploy automatically to the shared Supabase project via `.github/workflows/update_db.yaml` on push to `main` — no manual `supabase db push` needed for normal development. The [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) is only required if you want to create new migrations or run Supabase locally.
+Schema changes live in `../supabase/migrations` — a single shared history applied
+independently to each project. On push to `main`, `.github/workflows/update_db.yaml`
+pushes them to production automatically, so no manual step is needed for normal
+development.
+
+To apply migrations yourself (or to a sandbox project), use the Makefile targets —
+each re-links to its own project ref immediately before pushing, so you can't
+accidentally push to whichever project happened to be linked last:
+
+```sh
+make migration-new NAME=add_something   # create a migration file
+make migrate-status-sandbox             # read-only: applied vs pending
+make migrate-sandbox                    # dry-run, then apply on confirmation
+make migrate-prod                       # same, against production
+```
+
+Run `supabase login` once first. The [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started)
+prompts for each project's DB password on first link and caches it in your OS
+keychain — it's never written to a file.
 
 ## Deploy
 

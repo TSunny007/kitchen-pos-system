@@ -2,12 +2,30 @@ import { supabase } from "./client";
 import type {
   Order,
   OrderItem,
-  OrderItemModifier,
   CartItem,
   OrderStatus,
   OrderItemStatus,
 } from "@/app/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { aggregateItemStatus } from "@/app/lib/orderStatus";
+
+// Shared PostgREST select shapes - these were repeated verbatim across the
+// order queries, so a change to what the kitchen or terminal needs had to be
+// made in several places at once.
+const ORDER_WITH_ITEMS = `
+  *,
+  order_items (
+    *,
+    item:items(*),
+    modifiers:order_item_modifiers(*)
+  )
+`;
+
+const ORDER_ITEM_WITH_RELATIONS = `
+  *,
+  item:items(*),
+  modifiers:order_item_modifiers(*)
+`;
 
 // ============ Order Creation ============
 
@@ -176,48 +194,15 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
 
 // ============ Order Queries ============
 
-/**
- * Fetch orders for a campaign with optional status filter
- */
-export async function getOrders(
-  campaignId?: number,
-  status?: OrderStatus | OrderStatus[]
-): Promise<Order[]> {
-  let query = supabase
-    .from("orders")
-    .select(
-      `
-      *,
-      order_items (
-        *,
-        item:items(*),
-        modifiers:order_item_modifiers(*)
-      )
-    `
-    )
-    .order("created_at", { ascending: false })
-    .order("id", { referencedTable: "order_items", ascending: true });
-
-  if (campaignId) {
-    query = query.eq("campaign_id", campaignId);
-  }
-
-  if (status) {
-    if (Array.isArray(status)) {
-      query = query.in("status", status);
-    } else {
-      query = query.eq("status", status);
-    }
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error("Error fetching orders:", error);
-    throw error;
-  }
-
-  return data || [];
+/** Apply an optional single-or-many status filter to an orders query. */
+function withStatusFilter<Q extends {
+  in(column: "status", values: OrderStatus[]): Q;
+  eq(column: "status", value: OrderStatus): Q;
+}>(query: Q, status?: OrderStatus | OrderStatus[]): Q {
+  if (!status) return query;
+  return Array.isArray(status)
+    ? query.in("status", status)
+    : query.eq("status", status);
 }
 
 export interface PaginatedOrdersResult {
@@ -241,47 +226,28 @@ export async function getRecentOrders(
   const offset = (page - 1) * pageSize;
 
   // First get total count
-  let countQuery = supabase
-    .from("orders")
-    .select("*", { count: "exact", head: true })
-    .eq("campaign_id", campaignId);
-
-  if (status) {
-    if (Array.isArray(status)) {
-      countQuery = countQuery.in("status", status);
-    } else {
-      countQuery = countQuery.eq("status", status);
-    }
-  }
+  const countQuery = withStatusFilter(
+    supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .eq("campaign_id", campaignId),
+    status
+  );
 
   const { count } = await countQuery;
   const totalCount = count || 0;
 
   // Then fetch the page
-  let query = supabase
-    .from("orders")
-    .select(
-      `
-      *,
-      order_items (
-        *,
-        item:items(*),
-        modifiers:order_item_modifiers(*)
-      )
-    `
-    )
-    .eq("campaign_id", campaignId)
-    .order("created_at", { ascending: false })
-    .order("id", { referencedTable: "order_items", ascending: true })
-    .range(offset, offset + pageSize - 1);
-
-  if (status) {
-    if (Array.isArray(status)) {
-      query = query.in("status", status);
-    } else {
-      query = query.eq("status", status);
-    }
-  }
+  const query = withStatusFilter(
+    supabase
+      .from("orders")
+      .select(ORDER_WITH_ITEMS)
+      .eq("campaign_id", campaignId)
+      .order("created_at", { ascending: false })
+      .order("id", { referencedTable: "order_items", ascending: true })
+      .range(offset, offset + pageSize - 1),
+    status
+  );
 
   const { data, error } = await query;
 
@@ -303,16 +269,7 @@ export async function getRecentOrders(
 export async function getOrderById(id: number): Promise<Order | null> {
   const { data, error } = await supabase
     .from("orders")
-    .select(
-      `
-      *,
-      order_items (
-        *,
-        item:items(*),
-        modifiers:order_item_modifiers(*)
-      )
-    `
-    )
+    .select(ORDER_WITH_ITEMS)
     .eq("id", id)
     .order("id", { referencedTable: "order_items", ascending: true })
     .single();
@@ -329,84 +286,6 @@ export async function getOrderById(id: number): Promise<Order | null> {
 }
 
 // ============ Order Updates ============
-
-/**
- * Update order status
- */
-export async function updateOrderStatus(
-  orderId: number,
-  status: OrderStatus
-): Promise<Order> {
-  const { data, error } = await supabase
-    .from("orders")
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq("id", orderId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error updating order status:", error);
-    throw error;
-  }
-
-  return data;
-}
-
-/**
- * Update order item status and log the transition
- * Also updates the parent order status based on all item statuses
- */
-export async function updateOrderItemStatus(
-  orderItemId: number,
-  newStatus: OrderItemStatus
-): Promise<OrderItem> {
-  // First, get current status and order_id
-  const { data: currentItem, error: fetchError } = await supabase
-    .from("order_items")
-    .select("status, order_id")
-    .eq("id", orderItemId)
-    .single();
-
-  if (fetchError) {
-    console.error("Error fetching order item:", fetchError);
-    throw fetchError;
-  }
-
-  const oldStatus = currentItem.status;
-  const orderId = currentItem.order_id;
-
-  // Update the status
-  const { data: updatedItem, error: updateError } = await supabase
-    .from("order_items")
-    .update({ status: newStatus, updated_at: new Date().toISOString() })
-    .eq("id", orderItemId)
-    .select()
-    .single();
-
-  if (updateError) {
-    console.error("Error updating order item status:", updateError);
-    throw updateError;
-  }
-
-  // Log the status event
-  const { error: eventError } = await supabase
-    .from("order_item_status_events")
-    .insert({
-      order_item_id: orderItemId,
-      old_status: oldStatus,
-      new_status: newStatus,
-    });
-
-  if (eventError) {
-    console.error("Error logging status event:", eventError);
-    // Don't throw - the update succeeded
-  }
-
-  // Update the parent order status based on all item statuses
-  await updateOrderStatusFromItems(orderId);
-
-  return updatedItem;
-}
 
 /**
  * Update multiple order items' status at once (for batch category updates)
@@ -499,24 +378,11 @@ export async function updateOrderStatusFromItems(orderId: number): Promise<void>
     return;
   }
 
-  const statuses = activeItems.map((item) => item.status);
-  const allNew = statuses.every((s) => s === "new");
-  const allDone = statuses.every((s) => s === "done");
-  const anyInProgress = statuses.some((s) => s === "in_progress");
-  const anyDone = statuses.some((s) => s === "done");
-
-  let newOrderStatus: OrderStatus;
-  
-  if (allDone) {
-    newOrderStatus = "completed";
-  } else if (anyInProgress || anyDone) {
-    // Some items in progress, or some done but not all
-    newOrderStatus = "in_progress";
-  } else if (allNew) {
-    newOrderStatus = "new";
-  } else {
-    newOrderStatus = "new";
-  }
+  // Order-level "completed" is just the item-level "done" rollup under a
+  // different name; everything else maps across unchanged.
+  const aggregate = aggregateItemStatus(activeItems);
+  const newOrderStatus: OrderStatus =
+    aggregate === "done" ? "completed" : aggregate;
 
   // Get current order status to avoid unnecessary updates
   const { data: currentOrder, error: orderFetchError } = await supabase
@@ -570,11 +436,7 @@ export async function updateOrderItem(
   // 1. Get the current order item with its order info
   const { data: currentItem, error: fetchError } = await supabase
     .from("order_items")
-    .select(`
-      *,
-      item:items(*),
-      modifiers:order_item_modifiers(*)
-    `)
+    .select(ORDER_ITEM_WITH_RELATIONS)
     .eq("id", orderItemId)
     .single();
 
@@ -584,16 +446,14 @@ export async function updateOrderItem(
   }
 
   // 2. Update the order item
-  const { data: updatedItem, error: updateError } = await supabase
+  const { error: updateError } = await supabase
     .from("order_items")
     .update({
       quantity,
       notes,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", orderItemId)
-    .select()
-    .single();
+    .eq("id", orderItemId);
 
   if (updateError) {
     console.error("Error updating order item:", updateError);
@@ -645,11 +505,7 @@ export async function updateOrderItem(
   // 6. Fetch and return the updated item with all relations
   const { data: finalItem, error: finalError } = await supabase
     .from("order_items")
-    .select(`
-      *,
-      item:items(*),
-      modifiers:order_item_modifiers(*)
-    `)
+    .select(ORDER_ITEM_WITH_RELATIONS)
     .eq("id", orderItemId)
     .single();
 
@@ -741,15 +597,25 @@ async function recalculateOrderSubtotal(orderId: number): Promise<void> {
 
 // ============ Real-time Subscriptions ============
 
+type OrderChangeHandler = (
+  eventType: "INSERT" | "UPDATE" | "DELETE",
+  order: Order
+) => void;
+
 /**
- * Subscribe to all order changes for a campaign
+ * Subscribe to the `orders` table for one campaign.
+ *
+ * Realtime payloads only carry the `orders` row, so INSERT/UPDATE re-fetch the
+ * full order with its items before handing it over; DELETE has nothing left to
+ * fetch and passes the old row through.
  */
-export function subscribeToOrders(
+function subscribeToOrderRows(
+  channelName: string,
   campaignId: number,
-  onOrderChange: (eventType: "INSERT" | "UPDATE" | "DELETE", order: Order) => void
-): () => void {
-  const channel: RealtimeChannel = supabase
-    .channel(`orders-${campaignId}`)
+  onOrderChange: OrderChangeHandler
+): RealtimeChannel {
+  return supabase
+    .channel(channelName)
     .on(
       "postgres_changes",
       {
@@ -759,21 +625,34 @@ export function subscribeToOrders(
         filter: `campaign_id=eq.${campaignId}`,
       },
       async (payload) => {
-        const order = (payload.new || payload.old) as Order;
         const eventType = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
 
         if (eventType === "DELETE") {
           onOrderChange(eventType, payload.old as Order);
-        } else {
-          // Fetch full order with items for INSERT/UPDATE
-          const fullOrder = await getOrderById(order.id);
-          if (fullOrder) {
-            onOrderChange(eventType, fullOrder);
-          }
+          return;
+        }
+
+        const fullOrder = await getOrderById((payload.new as Order).id);
+        if (fullOrder) {
+          onOrderChange(eventType, fullOrder);
         }
       }
     )
     .subscribe();
+}
+
+/**
+ * Subscribe to all order changes for a campaign
+ */
+export function subscribeToOrders(
+  campaignId: number,
+  onOrderChange: OrderChangeHandler
+): () => void {
+  const channel = subscribeToOrderRows(
+    `orders-${campaignId}`,
+    campaignId,
+    onOrderChange
+  );
 
   return () => {
     supabase.removeChannel(channel);
@@ -792,16 +671,7 @@ export function subscribeToOrders(
 export async function getKitchenOrders(campaignId: number): Promise<Order[]> {
   const { data, error } = await supabase
     .from("orders")
-    .select(
-      `
-      *,
-      order_items (
-        *,
-        item:items(*),
-        modifiers:order_item_modifiers(*)
-      )
-    `
-    )
+    .select(ORDER_WITH_ITEMS)
     .eq("campaign_id", campaignId)
     .in("status", ["new", "in_progress", "completed"])
     .order("created_at", { ascending: true }) // Oldest first for kitchen
@@ -816,53 +686,29 @@ export async function getKitchenOrders(campaignId: number): Promise<Order[]> {
 }
 
 /**
- * Subscribe to kitchen order changes (new, in_progress, ready orders)
- * This is optimized for the kitchen display which needs real-time updates
+ * Subscribe to kitchen order changes.
+ *
+ * Same order-row stream as subscribeToOrders, plus a second channel on
+ * order_items: the kitchen advances individual items, and those updates don't
+ * always touch the parent order row, so they'd otherwise go unnoticed.
  */
 export function subscribeToKitchenOrders(
   campaignId: number,
-  onOrderChange: (eventType: "INSERT" | "UPDATE" | "DELETE", order: Order) => void
+  onOrderChange: OrderChangeHandler
 ): () => void {
-  const orderChannel: RealtimeChannel = supabase
-    .channel(`kitchen-orders-${campaignId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "orders",
-        filter: `campaign_id=eq.${campaignId}`,
-      },
-      async (payload) => {
-        const order = (payload.new || payload.old) as Order;
-        const eventType = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
+  const orderChannel = subscribeToOrderRows(
+    `kitchen-orders-${campaignId}`,
+    campaignId,
+    onOrderChange
+  );
 
-        if (eventType === "DELETE") {
-          onOrderChange(eventType, payload.old as Order);
-        } else {
-          // Fetch full order with items for INSERT/UPDATE
-          const fullOrder = await getOrderById(order.id);
-          if (fullOrder) {
-            onOrderChange(eventType, fullOrder);
-          }
-        }
-      }
-    )
-    .subscribe();
-
-  // Also subscribe to order_items changes to catch item-level status updates
   const itemsChannel: RealtimeChannel = supabase
     .channel(`kitchen-order-items-${campaignId}`)
     .on(
       "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "order_items",
-      },
+      { event: "UPDATE", schema: "public", table: "order_items" },
       async (payload) => {
         const orderItem = payload.new as { order_id: number };
-        // Fetch the full order to get updated item statuses
         const fullOrder = await getOrderById(orderItem.order_id);
         if (fullOrder && fullOrder.campaign_id === campaignId) {
           onOrderChange("UPDATE", fullOrder);

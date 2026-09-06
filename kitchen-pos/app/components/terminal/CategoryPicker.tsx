@@ -96,13 +96,9 @@ export default function CategoryPicker({
     try {
       const success = await onDeleteCategory(categoryId);
       if (success) {
-        // If we deleted the selected category, clear selection
-        if (selectedCategoryId === categoryId) {
-          // Parent will need to handle this
-        }
         setConfirmDeleteId(null);
       }
-    } catch (err) {
+    } catch {
       // Error is likely due to foreign key constraint (items linked to category)
       alert("Cannot delete category: it may have items linked to it.");
     } finally {
