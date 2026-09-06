@@ -89,9 +89,8 @@ export default function AddItemModal({
     }
   };
 
-    return (
+  return (
     <Modal
-      isOpen
       onClose={onClose}
       title="Add New Item"
       panelClassName="max-h-[90vh] max-w-md overflow-y-auto"

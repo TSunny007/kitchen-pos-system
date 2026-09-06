@@ -126,7 +126,6 @@ export default function ManageCampaignItemsModal({
 
   return (
     <Modal
-      isOpen
       onClose={onClose}
       variant="centered"
       title="Manage Campaign Items"

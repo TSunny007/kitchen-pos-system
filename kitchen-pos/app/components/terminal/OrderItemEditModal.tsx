@@ -69,7 +69,6 @@ export default function OrderItemEditModal({
 
   return (
     <Modal
-      isOpen
       onClose={onClose}
       variant="centered"
       title="Edit Item"

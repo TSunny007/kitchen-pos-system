@@ -470,9 +470,10 @@ export default function KitchenPage() {
         })}
       </main>
 
-      {/* Display Options Modal */}
+      {/* Display Options Modal - mounted only while open, like every other
+          modal in the app, so it can't hold stale state between opens. */}
+      {isDisplayOptionsOpen && (
       <Modal
-        isOpen={isDisplayOptionsOpen}
         onClose={() => setIsDisplayOptionsOpen(false)}
         title="Display Options"
         panelClassName="max-h-[90vh] max-w-lg overflow-y-auto"
@@ -556,6 +557,7 @@ export default function KitchenPage() {
           </button>
         </div>
       </Modal>
+      )}
     </div>
   );
 }

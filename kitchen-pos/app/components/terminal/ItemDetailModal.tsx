@@ -181,8 +181,8 @@ export default function ItemDetailModal({
 
   return (
     <Modal
-      isOpen
       onClose={onClose}
+      ariaLabel={item.name}
       panelClassName="max-h-[90vh] overflow-hidden sm:max-w-md"
     >
         <div className="max-h-[90vh] overflow-y-auto">
