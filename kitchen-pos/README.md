@@ -2,11 +2,17 @@
 
 A point-of-sale app for taking and tracking kitchen orders, built with Next.js (App Router) and Supabase. Deploys to Vercel automatically on push to `main`; database migrations (in `../supabase/migrations`) deploy via a separate GitHub Action.
 
+> **Setting this up for a different organisation?** This page covers working on
+> *an existing* deployment — you need access to its Vercel and Supabase
+> projects. To stand up your own from scratch, start with
+> [the root README](../README.md), which covers creating the Supabase project,
+> applying the schema, seeding a menu, and what's configurable.
+
 ## Prerequisites
 
 - **Node.js 20.9+** (this repo currently develops against Node 26). Install via [Homebrew](https://brew.sh): `brew install node`
-- **Vercel CLI**, logged into an account with access to the `kitchen-pos-system` project: `npm install -g vercel`
-- Access to the shared **Supabase project** — you get this through Vercel (see below), no separate Supabase login needed to just run the app.
+- **Vercel CLI**, logged into an account with access to this deployment's Vercel project: `npm install -g vercel`
+- Access to its **Supabase project** — you get this through Vercel (see below), no separate Supabase login needed to just run the app.
 
 ### macOS: Node/npm TLS errors ("unable to get local issuer certificate")
 
@@ -27,16 +33,20 @@ echo 'export NODE_EXTRA_CA_CERTS="/opt/homebrew/opt/ca-certificates/share/ca-cer
 
 2. **Link this folder to the Vercel project** (one-time; you'll be prompted to log in first with `vercel login` if you haven't):
    ```sh
-   vercel link --project kitchen-pos-system
+   vercel link --project <your-vercel-project>
    ```
 
 3. **Pull environment variables from Vercel:**
    ```sh
    vercel env pull .env.local
    ```
+   (Not using Vercel, or setting up a fresh fork? `cp .env.example .env.local`
+   and fill it in by hand instead — `.env.example` documents every variable the
+   app reads, and all but the two Supabase ones are optional.)
+
    This writes `.env.local` (gitignored) with:
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — connect to the **real, shared Supabase project** (production data: real orders, real stock counts). To point at a separate sandbox project instead, see [Sandbox vs production](#sandbox-vs-production) below.
-   - `NEXT_PUBLIC_ORG_NAME` — display name shown in the UI.
+   - `NEXT_PUBLIC_ORG_NAME` — display name shown in the UI. Optional, like every non-Supabase variable; `.env.example` and [the root README](../README.md#environment-variables) list them all with their defaults.
    - `SUPABASE_KEY`, `SUPABASE_PROJECT_ID` — see caveat below.
    - `VERCEL_OIDC_TOKEN` — used by the Vercel SDK/OIDC, unrelated to Supabase.
 

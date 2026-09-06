@@ -1,12 +1,38 @@
 @import "tailwindcss";
 
 :root {
-  /* Custom Color Palette - Pistachio Green Theme */
-  --md-primary: #7CB474;           /* Pistachio green */
-  --md-on-primary: #FFFFFF;
-  --md-primary-container: #D4E8D1; /* Light pistachio */
-  --md-on-primary-container: #1A3D16;
-  
+  /* ========================================================================
+   * BRAND — the block to edit to re-skin the app.
+   *
+   * The accent appears in three palettes below (light, system-dark, and the
+   * manual .dark toggle); defining it once here keeps them from drifting.
+   * Each token needs a light and a dark variant, since an accent legible on
+   * white rarely is on near-black — lighten and desaturate for dark.
+   *
+   * The neutral ramp under "Surfaces" is a warm sand tuned to this green.
+   * Swapping to a cool accent usually means neutralising those too; they stay
+   * literals because changing them is a whole-look decision, not a switch.
+   * ===================================================================== */
+  --brand-primary: #7CB474;                  /* Pistachio green */
+  --brand-on-primary: #FFFFFF;               /* Text/icons on top of it */
+  --brand-primary-container: #D4E8D1;        /* Tinted fill for chips, cards */
+  --brand-on-primary-container: #1A3D16;
+  --brand-success: #5A8A53;                  /* "Ready"/confirmed states */
+  --brand-on-success: #FFFFFF;
+
+  --brand-primary-dark: #A3D49A;
+  --brand-on-primary-dark: #1A3D16;
+  --brand-primary-container-dark: #2D5427;
+  --brand-on-primary-container-dark: #D4E8D1;
+  --brand-success-dark: #A3D49A;
+  --brand-on-success-dark: #1A3D16;
+
+  /* --- Light palette ---------------------------------------------------- */
+  --md-primary: var(--brand-primary);
+  --md-on-primary: var(--brand-on-primary);
+  --md-primary-container: var(--brand-primary-container);
+  --md-on-primary-container: var(--brand-on-primary-container);
+
   --md-secondary: #8B8578;         /* Warm taupe */
   --md-on-secondary: #FFFFFF;
   --md-secondary-container: #F5F0E8; /* Faint sand */
@@ -36,9 +62,9 @@
   --md-error-container: #FFDAD6;
   --md-on-error-container: #410002;
   
-  --md-success: #5A8A53;           /* Muted pistachio for success */
-  --md-on-success: #FFFFFF;
-  
+  --md-success: var(--brand-success);
+  --md-on-success: var(--brand-on-success);
+
   --md-warning: #C77800;           /* Amber - sits between success and error */
   --md-on-warning: #FFFFFF;
   
@@ -98,12 +124,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light):not(.dark) {
-    /* Dark Theme - Pistachio Green (system preference fallback) */
-    --md-primary: #A3D49A;           /* Lighter pistachio for dark */
-    --md-on-primary: #1A3D16;
-    --md-primary-container: #2D5427;
-    --md-on-primary-container: #D4E8D1;
-    
+    /* Dark palette, system-preference fallback. Accent from BRAND above. */
+    --md-primary: var(--brand-primary-dark);
+    --md-on-primary: var(--brand-on-primary-dark);
+    --md-primary-container: var(--brand-primary-container-dark);
+    --md-on-primary-container: var(--brand-on-primary-container-dark);
+
     --md-secondary: #D4CFC3;
     --md-on-secondary: #3D3A33;
     --md-secondary-container: #4A4740;
@@ -133,8 +159,8 @@
     --md-error-container: #93000A;
     --md-on-error-container: #FFDAD6;
     
-    --md-success: #A3D49A;
-    --md-on-success: #1A3D16;
+    --md-success: var(--brand-success-dark);
+    --md-on-success: var(--brand-on-success-dark);
     
     --md-warning: #F0B357;
     --md-on-warning: #452B00;
@@ -146,12 +172,12 @@
 
 /* Manual dark mode class */
 :root.dark {
-  /* Dark Theme - Pistachio Green */
-  --md-primary: #A3D49A;           /* Lighter pistachio for dark */
-  --md-on-primary: #1A3D16;
-  --md-primary-container: #2D5427;
-  --md-on-primary-container: #D4E8D1;
-  
+  /* Dark palette, manual toggle. Accent from BRAND above. */
+  --md-primary: var(--brand-primary-dark);
+  --md-on-primary: var(--brand-on-primary-dark);
+  --md-primary-container: var(--brand-primary-container-dark);
+  --md-on-primary-container: var(--brand-on-primary-container-dark);
+
   --md-secondary: #D4CFC3;
   --md-on-secondary: #3D3A33;
   --md-secondary-container: #4A4740;
@@ -181,9 +207,9 @@
   --md-error-container: #93000A;
   --md-on-error-container: #FFDAD6;
   
-  --md-success: #A3D49A;
-  --md-on-success: #1A3D16;
-  
+  --md-success: var(--brand-success-dark);
+  --md-on-success: var(--brand-on-success-dark);
+
   --md-warning: #F0B357;
   --md-on-warning: #452B00;
   

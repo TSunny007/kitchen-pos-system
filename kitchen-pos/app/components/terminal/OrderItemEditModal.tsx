@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { OrderItem, Modifier } from "../../types";
 import Modal from "../Modal";
-import { formatCurrency } from "../../lib/format";
+import { formatCurrency, formatPriceDelta } from "../../lib/format";
 
 interface OrderItemEditModalProps {
   orderItem: OrderItem;
@@ -195,8 +195,7 @@ export default function OrderItemEditModal({
                           : "text-on-surface-variant"
                       }`}
                     >
-                      {modifier.price_delta > 0 ? "+" : ""}
-                      {formatCurrency(modifier.price_delta)}
+                      {formatPriceDelta(modifier.price_delta)}
                     </span>
                   )}
                 </button>

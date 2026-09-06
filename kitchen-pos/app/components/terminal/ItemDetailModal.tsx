@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Item, Modifier } from "../../types";
 import Modal, { CloseIcon } from "../Modal";
-import { formatCurrency } from "../../lib/format";
+import { formatCurrency, formatPriceDelta, currencyAdornment } from "../../lib/format";
 
 interface ItemDetailModalProps {
   item: Item;
@@ -406,8 +406,7 @@ export default function ItemDetailModal({
                               ? "text-on-surface-variant" 
                               : "text-primary"
                         }`}>
-                          {modifier.price_delta > 0 ? "+" : ""}
-                          {formatCurrency(modifier.price_delta)}
+                          {formatPriceDelta(modifier.price_delta)}
                         </span>
                       )}
                     </button>
@@ -473,7 +472,7 @@ export default function ItemDetailModal({
                             <span>{modifier.name}</span>
                             {modifier.price_delta !== 0 && (
                               <span className="opacity-70">
-                                ({modifier.price_delta > 0 ? "+" : ""}{formatCurrency(modifier.price_delta)})
+                                ({formatPriceDelta(modifier.price_delta)})
                               </span>
                             )}
                             {/* Unlink button */}
@@ -531,7 +530,7 @@ export default function ItemDetailModal({
                             {modifier.name}
                             {modifier.price_delta !== 0 && (
                               <span className="opacity-70">
-                                ({modifier.price_delta > 0 ? "+" : ""}{formatCurrency(modifier.price_delta)})
+                                ({formatPriceDelta(modifier.price_delta)})
                               </span>
                             )}
                             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -557,16 +556,21 @@ export default function ItemDetailModal({
                               placeholder="Modifier name"
                               className="flex-1 rounded-lg border border-outline bg-transparent px-3 py-2 text-sm text-on-surface placeholder-on-surface-variant focus:border-primary focus:outline-none"
                             />
-                            <div className="relative w-28">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-on-surface-variant">$</span>
+                            <div className="flex w-28 items-center gap-1.5 rounded-lg border border-outline bg-transparent px-3 py-2 focus-within:border-primary">
+                              {currencyAdornment.position === "prefix" && (
+                                <span className="shrink-0 text-sm text-on-surface-variant">{currencyAdornment.symbol}</span>
+                              )}
                               <input
                                 type="number"
                                 step="0.01"
                                 value={newModifierPrice}
                                 onChange={(e) => setNewModifierPrice(e.target.value)}
                                 placeholder="0.00"
-                                className="w-full rounded-lg border border-outline bg-transparent pl-7 pr-3 py-2 text-sm text-on-surface placeholder-on-surface-variant focus:border-primary focus:outline-none"
+                                className="w-full min-w-0 bg-transparent text-sm text-on-surface placeholder-on-surface-variant focus:outline-none"
                               />
+                              {currencyAdornment.position === "suffix" && (
+                                <span className="shrink-0 text-sm text-on-surface-variant">{currencyAdornment.symbol}</span>
+                              )}
                             </div>
                           </div>
                           <div className="flex gap-2">
