@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { Order, OrderItem } from "../../types";
-import { formatCurrency } from "../../lib/format";
-import { formatClockTime, formatElapsed } from "../../lib/format";
+import { formatCurrency, formatPriceDelta, formatClockTime, formatElapsed } from "../../lib/format";
 import { useElapsedMs } from "../../lib/useElapsed";
 
 interface OrderCardProps {
@@ -173,7 +172,7 @@ export default function OrderCard({
                             >
                               <span>+ {mod.label}</span>
                               {mod.price_delta !== 0 && (
-                                <span>{formatCurrency(mod.price_delta)}</span>
+                                <span>{formatPriceDelta(mod.price_delta)}</span>
                               )}
                             </div>
                           ))}

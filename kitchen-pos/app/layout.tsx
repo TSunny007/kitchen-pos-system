@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "./providers/ThemeProvider";
 import { AuthProvider } from "./providers/AuthProvider";
+import { tenant } from "./config/tenant";
 
 const programme = localFont({
   src: [
@@ -18,8 +19,8 @@ const programme = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Kitchen POS",
-  description: "Point of Sale for Kitchen Operations",
+  title: tenant.appName,
+  description: tenant.appDescription,
 };
 
 export default function RootLayout({
@@ -28,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={tenant.locale} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{

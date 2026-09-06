@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Campaign } from "../../types";
 import { CloseIcon } from "../Modal";
+import { formatDate } from "../../lib/format";
 
 interface CampaignSelectorProps {
   campaigns: Campaign[];
@@ -222,7 +223,7 @@ export default function CampaignSelector({
                       </p>
                       {campaign.starts_at && (
                         <p className="text-xs text-on-surface-variant">
-                          {new Date(campaign.starts_at).toLocaleDateString()}
+                          {formatDate(campaign.starts_at)}
                         </p>
                       )}
                     </div>
@@ -274,7 +275,7 @@ export default function CampaignSelector({
                         <p className="font-medium truncate text-on-surface">{campaign.name}</p>
                         {campaign.starts_at && (
                           <p className="text-xs text-on-surface-variant">
-                            {new Date(campaign.starts_at).toLocaleDateString()}
+                            {formatDate(campaign.starts_at)}
                           </p>
                         )}
                       </div>

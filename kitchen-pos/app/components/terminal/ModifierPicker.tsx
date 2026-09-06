@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Modifier } from "../../types";
-import { formatCurrency } from "../../lib/format";
+import { formatPriceDelta, currencyAdornment } from "../../lib/format";
 
 interface ModifierPickerProps {
   modifiers: Modifier[];
@@ -110,7 +110,7 @@ export default function ModifierPicker({
                 {modifier.name}
                 {modifier.price_delta !== 0 && (
                   <span className="opacity-70">
-                    ({modifier.price_delta > 0 ? "+" : ""}{formatCurrency(modifier.price_delta)})
+                    ({formatPriceDelta(modifier.price_delta)})
                   </span>
                 )}
               </span>
@@ -170,7 +170,7 @@ export default function ModifierPicker({
                     <div className="flex items-center gap-2">
                       {modifier.price_delta !== 0 && (
                         <span className="text-on-surface-variant">
-                          {modifier.price_delta > 0 ? "+" : ""}{formatCurrency(modifier.price_delta)}
+                          {formatPriceDelta(modifier.price_delta)}
                         </span>
                       )}
                       {isSelected && (
@@ -195,17 +195,22 @@ export default function ModifierPicker({
                       Create &quot;{searchQuery.trim()}&quot;
                     </p>
                     <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-on-surface-variant">$</span>
+                      <div className="flex flex-1 items-center gap-1.5 rounded-md border border-outline bg-transparent px-3 py-1.5 focus-within:border-primary">
+                        {currencyAdornment.position === "prefix" && (
+                          <span className="shrink-0 text-sm text-on-surface-variant">{currencyAdornment.symbol}</span>
+                        )}
                         <input
                           type="number"
                           step="0.01"
                           value={newModifierPrice}
                           onChange={(e) => setNewModifierPrice(e.target.value)}
                           placeholder="0.00 (or -1.00)"
-                          className="w-full rounded-md border border-outline bg-transparent pl-7 pr-3 py-1.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none"
+                          className="w-full min-w-0 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none"
                           autoFocus
                         />
+                        {currencyAdornment.position === "suffix" && (
+                          <span className="shrink-0 text-sm text-on-surface-variant">{currencyAdornment.symbol}</span>
+                        )}
                       </div>
                       <button
                         type="button"

@@ -17,6 +17,7 @@ import CampaignSelector from "../components/terminal/CampaignSelector";
 import KitchenOrderCard from "../components/kitchen/KitchenOrderCard";
 import Modal from "../components/Modal";
 import Link from "next/link";
+import { tenant } from "../config/tenant";
 
 // Single source of truth for the swimlane columns: labels come from the
 // shared status config so the headers, the toggle buttons and the kitchen
@@ -373,7 +374,7 @@ export default function KitchenPage() {
           </Link>
           <div>
             <h1 className="text-lg font-medium text-on-surface sm:text-2xl">
-              Kitchen Display
+              {tenant.stations.kitchen.heading}
             </h1>
             <p className="text-xs text-on-surface-variant sm:text-sm">
               {filteredOrders.length} active order{filteredOrders.length !== 1 ? "s" : ""} • Live

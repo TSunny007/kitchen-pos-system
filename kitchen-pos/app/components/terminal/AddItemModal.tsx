@@ -5,6 +5,7 @@ import { Category, Modifier } from "../../types";
 import CategoryPicker from "./CategoryPicker";
 import ModifierPicker from "./ModifierPicker";
 import Modal from "../Modal";
+import { currencyAdornment } from "../../lib/format";
 
 interface AddItemModalProps {
   categories: Category[];
@@ -132,10 +133,13 @@ export default function AddItemModal({
             <label className="mb-1.5 block text-sm font-medium text-on-surface">
               Price
             </label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
-                $
-              </span>
+            {/* Flex rather than an absolutely-positioned overlay: the symbol
+                trails the amount in most European locales and isn't always one
+                character ("CHF", "R$"), so it has to size and sit naturally. */}
+            <div className="flex items-center gap-2 rounded-lg border border-outline bg-surface px-4 py-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+              {currencyAdornment.position === "prefix" && (
+                <span className="shrink-0 text-on-surface-variant">{currencyAdornment.symbol}</span>
+              )}
               <input
                 type="number"
                 step="0.01"
@@ -143,9 +147,12 @@ export default function AddItemModal({
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="0.00"
-                className="w-full rounded-lg border border-outline bg-surface pl-8 pr-4 py-3 text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full min-w-0 bg-transparent text-on-surface placeholder:text-on-surface-variant focus:outline-none"
                 disabled={isSubmitting}
               />
+              {currencyAdornment.position === "suffix" && (
+                <span className="shrink-0 text-on-surface-variant">{currencyAdornment.symbol}</span>
+              )}
             </div>
           </div>
 

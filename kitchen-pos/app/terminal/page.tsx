@@ -13,6 +13,7 @@ import OrderItemEditModal from "../components/terminal/OrderItemEditModal";
 import ManageCampaignItemsModal from "../components/terminal/ManageCampaignItemsModal";
 import ThemeToggle from "../components/ThemeToggle";
 import { useAuth } from "../providers/AuthProvider";
+import { tenant } from "../config/tenant";
 import {
   getCampaigns,
   getCategories,
@@ -780,7 +781,7 @@ export default function TerminalPage() {
                 />
               </svg>
             </Link>
-            <h1 className="text-lg font-medium text-on-surface sm:text-2xl">{process.env.NEXT_PUBLIC_ORG_NAME} Terminal</h1>
+            <h1 className="text-lg font-medium text-on-surface sm:text-2xl">{tenant.stations.terminal.heading}</h1>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             {/* Manage Campaign Items Button */}

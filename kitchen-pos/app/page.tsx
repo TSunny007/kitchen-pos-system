@@ -4,6 +4,7 @@ import { useAuth } from "./providers/AuthProvider";
 import LoginForm from "./components/LoginForm";
 import StationCard from "./components/StationCard";
 import ThemeToggle from "./components/ThemeToggle";
+import { tenant } from "./config/tenant";
 
 // Terminal icon (cash register)
 function TerminalIcon() {
@@ -70,7 +71,7 @@ export default function Home() {
         
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-on-surface mb-2">
-            {process.env.NEXT_PUBLIC_ORG_NAME || "Kitchen"} POS
+            {tenant.appName}
           </h1>
           <p className="text-on-surface-variant">Sign in to continue</p>
         </div>
@@ -95,7 +96,7 @@ export default function Home() {
 
       <div className="mb-12 text-center">
         <h1 className="text-3xl font-bold text-on-surface mb-2">
-          {process.env.NEXT_PUBLIC_ORG_NAME || "Kitchen"} POS
+          {tenant.appName}
         </h1>
         <p className="text-on-surface-variant">
           Welcome back, {user.email?.split("@")[0]}
@@ -104,14 +105,14 @@ export default function Home() {
 
       <div className="grid w-full max-w-2xl gap-6 sm:grid-cols-2">
         <StationCard
-          title="Order Terminal"
-          description="Take customer orders and manage the queue"
+          title={tenant.stations.terminal.title}
+          description={tenant.stations.terminal.description}
           href="/terminal"
           icon={<TerminalIcon />}
         />
         <StationCard
-          title="Kitchen Display"
-          description="View and manage order preparation"
+          title={tenant.stations.kitchen.title}
+          description={tenant.stations.kitchen.description}
           href="/kitchen"
           icon={<KitchenIcon />}
         />
