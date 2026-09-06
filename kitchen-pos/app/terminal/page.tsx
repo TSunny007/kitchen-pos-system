@@ -906,31 +906,31 @@ export default function TerminalPage() {
 
       {/* Add Item Modal - mounted only while open so its form starts fresh */}
       {isAddItemModalOpen && (
-      <AddItemModal
-        categories={categories}
-        modifiers={allModifiers}
-        selectedCategoryId={selectedCategory?.id}
-        onClose={() => setIsAddItemModalOpen(false)}
-        onAddItem={async (itemData) => {
-          const newItem = await handleCreateItem({
-            name: itemData.name,
-            description: itemData.description,
-            base_price: itemData.base_price,
-            category_id: itemData.category_id,
-            image_url: itemData.image_url,
-            no_prep_needed: itemData.no_prep_needed,
-          });
-          // Link modifiers to the new item
-          if (itemData.modifierIds.length > 0 && newItem) {
-            for (const modifierId of itemData.modifierIds) {
-              await linkModifierToItem(newItem.id, modifierId);
+        <AddItemModal
+          categories={categories}
+          modifiers={allModifiers}
+          selectedCategoryId={selectedCategory?.id}
+          onClose={() => setIsAddItemModalOpen(false)}
+          onAddItem={async (itemData) => {
+            const newItem = await handleCreateItem({
+              name: itemData.name,
+              description: itemData.description,
+              base_price: itemData.base_price,
+              category_id: itemData.category_id,
+              image_url: itemData.image_url,
+              no_prep_needed: itemData.no_prep_needed,
+            });
+            // Link modifiers to the new item
+            if (itemData.modifierIds.length > 0 && newItem) {
+              for (const modifierId of itemData.modifierIds) {
+                await linkModifierToItem(newItem.id, modifierId);
+              }
             }
-          }
-        }}
-        onCreateCategory={handleCreateCategory}
-        onDeleteCategory={handleDeleteCategory}
-        onCreateModifier={handleCreateModifier}
-      />
+          }}
+          onCreateCategory={handleCreateCategory}
+          onDeleteCategory={handleDeleteCategory}
+          onCreateModifier={handleCreateModifier}
+        />
       )}
 
       {/* Order Item Edit Modal - mounted only while an item is being edited */}

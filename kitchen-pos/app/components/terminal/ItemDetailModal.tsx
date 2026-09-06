@@ -74,7 +74,6 @@ export default function ItemDetailModal({
   // Check if modifier management is enabled
   const canManageModifiers = onCreateModifier || onLinkModifier || onUnlinkModifier;
 
-
   const calculateTotal = (): number => {
     const baseTotal = item.base_price * quantity;
     const modifiersTotal = selectedModifiers.reduce(

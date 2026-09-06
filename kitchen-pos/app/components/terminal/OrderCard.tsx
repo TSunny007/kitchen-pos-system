@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Order, OrderItem } from "../../types";
-import { formatCurrency, formatPriceDelta, formatClockTime, formatElapsed } from "../../lib/format";
+import { formatCurrency, formatPriceDelta, formatClockTime, formatTimeSince } from "../../lib/format";
 import { useElapsedMs } from "../../lib/useElapsed";
 
 interface OrderCardProps {
@@ -23,11 +23,8 @@ export default function OrderCard({
   const [isExpanded, setIsExpanded] = useState(false);
 
   const elapsedMs = useElapsedMs(order.created_at);
-  const elapsed = elapsedMs === null ? null : formatElapsed(elapsedMs);
   const timeSince =
-    elapsed === null || elapsed === "Just now" ? elapsed : `${elapsed} ago`;
-
-
+    elapsedMs === null ? null : formatTimeSince(order.created_at, elapsedMs);
 
   const calculateItemPrice = (orderItem: OrderItem): number => {
     const basePrice = orderItem.item?.base_price || 0;
@@ -65,7 +62,8 @@ export default function OrderCard({
             )}
           </div>
           <p className="text-xs text-on-surface-variant">
-            #{order.id} • {timeSince}
+            #{order.id}
+            {timeSince && ` • ${timeSince}`}
           </p>
         </div>
         <div className="flex items-center gap-2">

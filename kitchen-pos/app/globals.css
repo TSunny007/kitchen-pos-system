@@ -100,7 +100,6 @@
   
   --color-surface: var(--md-surface);
   --color-surface-dim: var(--md-surface-dim);
-  --color-surface-bright: var(--md-surface-bright);
   --color-surface-container: var(--md-surface-container);
   --color-surface-container-lowest: var(--md-surface-container-lowest);
   --color-surface-container-low: var(--md-surface-container-low);
@@ -117,9 +116,7 @@
   --color-error-container: var(--md-error-container);
   --color-on-error-container: var(--md-on-error-container);
   --color-success: var(--md-success);
-  --color-on-success: var(--md-on-success);
   --color-warning: var(--md-warning);
-  --color-on-warning: var(--md-on-warning);
 }
 
 @media (prefers-color-scheme: dark) {

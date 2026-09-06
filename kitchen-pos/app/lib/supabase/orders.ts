@@ -445,7 +445,14 @@ export async function updateOrderItem(
     throw fetchError;
   }
 
-  // 2. Update the order item
+  // 2. Update the order item.
+  //
+  // `.select().single()` is load-bearing even though the row isn't used: it
+  // makes PostgREST fail with PGRST116 when the update matched nothing (the
+  // row was concurrently deleted, or is filtered out by RLS for this user).
+  // Without it a zero-row update reports success, and we would go on to
+  // rewrite this item's modifiers and recalculate the order subtotal as
+  // though the edit had landed.
   const { error: updateError } = await supabase
     .from("order_items")
     .update({
@@ -453,7 +460,9 @@ export async function updateOrderItem(
       notes,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", orderItemId);
+    .eq("id", orderItemId)
+    .select()
+    .single();
 
   if (updateError) {
     console.error("Error updating order item:", updateError);

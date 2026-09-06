@@ -24,9 +24,7 @@ export default function KitchenOrderCard({
   onItemStatusChange,
   filterCategoryIds,
 }: KitchenOrderCardProps) {
-  // Ticks every 30s while the order is still active; null on the first paint.
-  const elapsedMs = useElapsedMs(order.created_at);
-  const elapsedTime = elapsedMs === null ? null : formatElapsed(elapsedMs);
+  // (elapsed clock is derived below, once aggregateStatus is known)
 
   // How long the order actually took to prep, once done - a fixed value
   // rather than a live-ticking clock, since it no longer needs to move.
@@ -51,18 +49,6 @@ export default function KitchenOrderCard({
     () => aggregateItemStatus(filteredItems),
     [filteredItems]
   );
-
-  // Get urgency class based on elapsed time and status
-  const getUrgencyClass = (): string => {
-    const now = new Date();
-    const created = new Date(order.created_at);
-    const diffMins = Math.floor((now.getTime() - created.getTime()) / 60000);
-
-    if (aggregateStatus === "done") return "";
-    if (diffMins >= 15) return "animate-pulse ring-2 ring-error";
-    if (diffMins >= 10) return "ring-2 ring-warning";
-    return "";
-  };
 
   // Handle advancing all filtered items to the next status
   const handleAdvanceStatus = () => {
@@ -92,7 +78,27 @@ export default function KitchenOrderCard({
     onItemStatusChange([itemId], "done");
   };
 
+  // Cancelled items are excluded from the rollup, so they must be excluded
+  // from the progress counter too or it can never reach its own total.
+  const activeItems = filteredItems.filter((i) => i.status !== "cancelled");
+
   const statusConfig = ITEM_STATUS_CONFIG[aggregateStatus];
+
+  // A finished card shows its fixed prep duration instead, so it doesn't need
+  // the live clock at all - don't subscribe it to the shared ticker.
+  const elapsedMs = useElapsedMs(order.created_at, aggregateStatus !== "done");
+  const elapsedTime = elapsedMs === null ? null : formatElapsed(elapsedMs);
+
+  // Urgency reads the same measurement as the timer text, so the ring and the
+  // clock can never disagree - this used to call new Date() during render,
+  // which meant a stale order could paint a red ring above a blank timer.
+  const urgencyMins = elapsedMs === null ? 0 : Math.floor(elapsedMs / 60000);
+  const urgencyClass =
+    aggregateStatus === "done" || urgencyMins < 10
+      ? ""
+      : urgencyMins >= 15
+        ? "animate-pulse ring-2 ring-error"
+        : "ring-2 ring-warning";
 
   // Don't render if no items match the filter
   if (filteredItems.length === 0) {
@@ -221,14 +227,14 @@ export default function KitchenOrderCard({
       {aggregateStatus === "in_progress" && onItemStatusChange && (
         <div className="flex items-center justify-end gap-2 border-t border-outline-variant p-3">
           <span className="text-sm text-on-surface-variant">
-            {filteredItems.filter(i => i.status === "done").length}/{filteredItems.length} ready
+            {activeItems.filter((i) => i.status === "done").length}/{activeItems.length} ready
           </span>
         </div>
       )}
     </>
   );
 
-  const cardClassName = `rounded-xl border-2 ${statusConfig.borderClass} bg-surface-container-low shadow-[var(--md-elevation-1)] transition-all ${getUrgencyClass()}`;
+  const cardClassName = `rounded-xl border-2 ${statusConfig.borderClass} bg-surface-container-low shadow-[var(--md-elevation-1)] transition-all ${urgencyClass}`;
 
   // New cards render as a real <button> so the "start preparing" action is
   // keyboard/switch-device accessible (focusable, Enter/Space-operable) for
