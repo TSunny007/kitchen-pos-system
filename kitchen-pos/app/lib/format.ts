@@ -87,15 +87,6 @@ export function formatElapsed(ms: number, zeroLabel = "Just now"): string {
   return `${Math.floor(mins / 60)}h ${mins % 60}m`;
 }
 
-/**
- * How to attach the currency's symbol to a bare number input, taken from the
- * same formatter the amounts use so the two can't disagree.
- *
- * Both fields matter: the symbol trails the amount in most European locales
- * ("1,50 €"), and it is not always one glyph — de-CH/CHF gives "CHF",
- * pt-BR/BRL gives "R$" — so callers size the padding from the string rather
- * than assuming a single character on the left.
- */
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -112,11 +103,39 @@ export function formatTimeSince(since: string, elapsedMs: number): string {
   return formatClockTime(since);
 }
 
-export const currencyAdornment: { symbol: string; position: "prefix" | "suffix" } = (() => {
+/**
+ * How to decorate a bare number input with the currency, derived from the same
+ * formatter the amounts use so the two can't disagree.
+ *
+ * All three fields matter, and each has a wrong answer that looks right:
+ *
+ * - `symbol` is not always one glyph — de-CH/CHF gives "CHF", pt-BR/BRL gives
+ *   "R$" — so a caller must size from the string, not assume a character.
+ * - `position` is decided by whether the currency part precedes the first
+ *   digit, not by whether it is at index 0. Several locales emit a leading
+ *   directional mark: fa-IR/IRR is [U+200E, "ریال", " ", "۰"], a prefix
+ *   currency sitting at index 1.
+ * - `step` follows the currency's own minor units. Hardcoding "0.01" lets an
+ *   operator type 4.50 for a zero-decimal currency like JPY, which then
+ *   *displays* as ¥5 — so line items stop summing to the subtotal.
+ */
+export const currencyAdornment: {
+  symbol: string;
+  position: "prefix" | "suffix";
+  step: string;
+} = (() => {
   const parts = currencyFormatter.formatToParts(0);
-  const index = parts.findIndex((part) => part.type === "currency");
+  const currencyIndex = parts.findIndex((part) => part.type === "currency");
+  const numberIndex = parts.findIndex(
+    (part) => part.type === "integer" || part.type === "minusSign",
+  );
+  const digits = currencyFormatter.resolvedOptions().maximumFractionDigits ?? 2;
+
   return {
-    symbol: index === -1 ? "$" : parts[index].value,
-    position: index === 0 ? "prefix" : "suffix",
+    // `style: "currency"` always emits a currency part, so the fallback is a
+    // type-level formality rather than a reachable branch.
+    symbol: currencyIndex === -1 ? currency : parts[currencyIndex].value,
+    position: currencyIndex < numberIndex ? "prefix" : "suffix",
+    step: digits === 0 ? "1" : `0.${"0".repeat(digits - 1)}1`,
   };
 })();

@@ -43,8 +43,8 @@ or prefix each command with `npx`.)
 **3. Seed a starter menu.** Optional but recommended for a first run — a
 migrated-but-empty database gives you a terminal with nothing to sell and no
 campaign to sell it under. Paste [`supabase/seed.sql`](supabase/seed.sql) into
-Dashboard → SQL Editor and run it. It's idempotent and only ever adds rows
-that are missing, so it's safe to re-run and safe to skip once you have a real
+Dashboard → SQL Editor and run it. It does nothing at all on a database that
+already has items, so it's safe to re-run and safe to skip once you have a real
 menu.
 
 **4. Create your first user.** There is deliberately no sign-up page — this is
@@ -86,7 +86,7 @@ app runs on a two-line `.env.local`. The full annotated list lives in
 | `NEXT_PUBLIC_ORG_NAME` | `Kitchen` | Your name, woven into titles: "Bluebird Cafe POS", "Bluebird Cafe Terminal". |
 | `NEXT_PUBLIC_LOCALE` | `en-US` | BCP 47 tag driving prices, dates, and 12- vs 24-hour clocks. |
 | `NEXT_PUBLIC_CURRENCY` | `USD` | ISO 4217 code. An unrecognised code warns and falls back rather than breaking the app. |
-| `SUPABASE_SECRET_KEY` | — | Optional, server-side only. Never needed to run the app; only for migrations and scripts that must bypass RLS. |
+| `SUPABASE_SERVICE_ROLE_KEY` | — | Optional, server-side only. **No application code reads this** — it's for the Supabase CLI and your own migration/backfill scripts, which need to bypass RLS. |
 
 ### Wording and labels
 
@@ -183,7 +183,7 @@ Concretely, that means:
 
 ```
 kitchen-pos/            Next.js app (this is the Vercel project root)
-  app/config/tenant.ts    all environment reads + per-fork constants
+  app/config/tenant.ts    branding/locale env reads + per-fork constants
   app/lib/format.ts       currency/date formatting, locale-driven
   app/lib/supabase/       data access, one module per table group
   app/terminal/           order-taking station
