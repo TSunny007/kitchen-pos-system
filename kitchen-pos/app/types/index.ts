@@ -107,8 +107,3 @@ export interface CartItem {
   modifiers: Modifier[];
   notes: string;
 }
-
-export interface Cart {
-  items: CartItem[];
-  customerName: string;
-}

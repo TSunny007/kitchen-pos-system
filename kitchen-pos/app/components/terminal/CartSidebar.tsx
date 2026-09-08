@@ -4,7 +4,8 @@ import { useState } from "react";
 import { CartItem, Order, OrderItem } from "../../types";
 import RecentOrders from "./RecentOrders";
 import { formatCurrency } from "../../lib/format";
-import { CloseIcon } from "../Modal";
+import { lineTotal } from "../../lib/pricing";
+import { CloseIcon, CartIcon, TrashIcon, MinusIcon, PlusIcon } from "../icons";
 
 type SidebarTab = "cart" | "orders";
 
@@ -54,16 +55,6 @@ export default function CartSidebar({
 }: CartSidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab>("cart");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  
-
-  const calculateItemTotal = (cartItem: CartItem): number => {
-    const baseTotal = cartItem.item.base_price * cartItem.quantity;
-    const modifiersTotal = cartItem.modifiers.reduce(
-      (sum, mod) => sum + mod.price_delta * cartItem.quantity,
-      0
-    );
-    return baseTotal + modifiersTotal;
-  };
 
   return (
     <>
@@ -147,7 +138,7 @@ export default function CartSidebar({
                 value={customerName}
                 onChange={(e) => onCustomerNameChange(e.target.value)}
                 placeholder="Enter name..."
-                className="mt-2 w-full rounded-lg border border-outline bg-transparent px-4 py-3 text-on-surface placeholder-on-surface-variant focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="mt-2 w-full rounded-lg border border-outline bg-transparent px-4 py-3 text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
 
@@ -155,20 +146,7 @@ export default function CartSidebar({
             <div className="flex-1 overflow-y-auto">
               {cartItems.length === 0 ? (
                 <div className="flex h-64 flex-col items-center justify-center px-6 text-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-16 w-16 text-outline-variant"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                    />
-                  </svg>
+                  <CartIcon className="h-16 w-16 text-outline-variant" strokeWidth={1.5} />
                   <p className="mt-4 text-on-surface-variant">Cart is empty</p>
                   <p className="mt-1 text-sm text-on-surface-variant">
                     Click on an item to add it
@@ -233,20 +211,7 @@ export default function CartSidebar({
                             }}
                             className="ml-2 text-on-surface-variant hover:text-error"
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-5 w-5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
+                            <TrashIcon className="h-5 w-5" />
                           </button>
                         )}
                       </div>
@@ -260,20 +225,7 @@ export default function CartSidebar({
                             }
                             className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container-high text-on-surface transition-colors hover:bg-surface-container-highest"
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M20 12H4"
-                              />
-                            </svg>
+                            <MinusIcon className="h-4 w-4" />
                           </button>
                           <span className="w-8 text-center font-medium text-on-surface">
                             {cartItem.quantity}
@@ -284,25 +236,12 @@ export default function CartSidebar({
                             }
                             className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container-high text-on-surface transition-colors hover:bg-surface-container-highest"
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 4v16m8-8H4"
-                              />
-                            </svg>
+                            <PlusIcon className="h-4 w-4" />
                           </button>
                         </div>
 
                         <span className="font-semibold text-on-surface">
-                          {formatCurrency(calculateItemTotal(cartItem))}
+                          {formatCurrency(lineTotal(cartItem.item.base_price, cartItem.modifiers, cartItem.quantity))}
                         </span>
                       </div>
                     </div>

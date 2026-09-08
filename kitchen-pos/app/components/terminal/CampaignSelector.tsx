@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Campaign } from "../../types";
-import { CloseIcon } from "../Modal";
+import { CloseIcon, ChevronDownIcon, PlusIcon, CheckIcon } from "../icons";
 import { formatDate } from "../../lib/format";
 
 interface CampaignSelectorProps {
@@ -107,22 +107,11 @@ export default function CampaignSelector({
             {selectedCampaign?.name || "Select Campaign"}
           </p>
         </div>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
+        <ChevronDownIcon
           className={`h-4 w-4 text-on-surface-variant transition-transform sm:ml-2 sm:h-5 sm:w-5 ${
             isOpen ? "rotate-180" : ""
           }`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
+        />
       </button>
 
       {isOpen && (
@@ -177,9 +166,7 @@ export default function CampaignSelector({
                     onClick={() => setIsCreating(true)}
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-primary hover:bg-surface-container"
                   >
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
+                    <PlusIcon className="h-5 w-5" />
                     New Campaign
                   </button>
                 )}
@@ -228,9 +215,7 @@ export default function CampaignSelector({
                       )}
                     </div>
                     {selectedCampaign?.id === campaign.id && (
-                      <svg className="h-5 w-5 text-primary shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
+                      <CheckIcon className="h-5 w-5 text-primary shrink-0" />
                     )}
                   </button>
                   {onToggleCampaignActive && (

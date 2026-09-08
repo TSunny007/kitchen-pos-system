@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Modifier } from "../../types";
 import { formatPriceDelta } from "../../lib/format";
+import { ChevronDownIcon, CheckIcon, PlusIcon } from "../icons";
 import PriceInput from "./PriceInput";
 
 interface ModifierPickerProps {
@@ -123,16 +124,11 @@ export default function ModifierPicker({
         ) : (
           <span className="text-on-surface-variant">Select modifiers (optional)...</span>
         )}
-        <svg
+        <ChevronDownIcon
           className={`ml-auto h-5 w-5 shrink-0 text-on-surface-variant transition-transform ${
             isOpen ? "rotate-180" : ""
           }`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        />
       </button>
 
       {/* Dropdown */}
@@ -150,7 +146,7 @@ export default function ModifierPicker({
               }}
               onKeyDown={handleKeyDown}
               placeholder="Search or create modifier..."
-              className="w-full rounded-md bg-surface-container-high px-3 py-2 text-sm text-on-surface placeholder-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-md bg-surface-container-high px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
@@ -178,9 +174,7 @@ export default function ModifierPicker({
                         </span>
                       )}
                       {isSelected && (
-                        <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
+                        <CheckIcon className="h-4 w-4 shrink-0" />
                       )}
                     </div>
                   </button>
@@ -225,9 +219,7 @@ export default function ModifierPicker({
                     onClick={() => setShowPriceInput(true)}
                     className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-primary transition-colors hover:bg-primary-container hover:text-on-primary-container"
                   >
-                    <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
+                    <PlusIcon className="h-4 w-4 shrink-0" />
                     <span>Create &quot;{searchQuery.trim()}&quot;</span>
                   </button>
                 )}

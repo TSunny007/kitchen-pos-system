@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Campaign, Category, Item, CartItem, Modifier, Order, OrderItem } from "../types";
 import CampaignSelector from "../components/terminal/CampaignSelector";
 import CategoryTabs from "../components/terminal/CategoryTabs";
@@ -12,7 +10,10 @@ import ItemDetailModal from "../components/terminal/ItemDetailModal";
 import OrderItemEditModal from "../components/terminal/OrderItemEditModal";
 import ManageCampaignItemsModal from "../components/terminal/ManageCampaignItemsModal";
 import ThemeToggle from "../components/ThemeToggle";
-import { useAuth } from "../providers/AuthProvider";
+import StationHeader from "../components/StationHeader";
+import { LoadingScreen, ErrorScreen } from "../components/StatusScreen";
+import { CartIcon } from "../components/icons";
+import { useRequireAuth } from "../lib/useRequireAuth";
 import { tenant } from "../config/tenant";
 import {
   getCampaigns,
@@ -45,10 +46,10 @@ import {
 } from "../lib/supabase";
 import AddItemModal from "../components/terminal/AddItemModal";
 import { formatCurrency } from "../lib/format";
+import { cartTotal } from "../lib/pricing";
 
 export default function TerminalPage() {
-  const router = useRouter();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useRequireAuth();
 
   // Data from Supabase
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -98,13 +99,6 @@ export default function TerminalPage() {
 
   // Editing cart item state
   const [editingCartItem, setEditingCartItem] = useState<CartItem | null>(null);
-
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/");
-    }
-  }, [authLoading, user, router]);
 
   // Load campaigns only on initial mount
   useEffect(() => {
@@ -267,16 +261,7 @@ export default function TerminalPage() {
     setCustomerName("");
   };
 
-  const calculateTotal = (): number => {
-    return cartItems.reduce((total, cartItem) => {
-      const itemTotal = cartItem.item.base_price * cartItem.quantity;
-      const modifiersTotal = cartItem.modifiers.reduce(
-        (sum, mod) => sum + mod.price_delta * cartItem.quantity,
-        0
-      );
-      return total + itemTotal + modifiersTotal;
-    }, 0);
-  };
+  const total = useMemo(() => cartTotal(cartItems), [cartItems]);
 
   const handlePlaceOrder = async () => {
     if (isPlacingOrder) return;
@@ -715,31 +700,11 @@ export default function TerminalPage() {
 
   // Auth loading or data loading state
   if (authLoading || isLoading || !user) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-surface">
-        <div className="text-center">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
-          <p className="text-on-surface-variant">Loading terminal...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message="Loading terminal..." />;
   }
 
-  // Error state
   if (error) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-surface">
-        <div className="text-center">
-          <p className="text-error mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="rounded-full bg-primary px-6 py-2 text-on-primary"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
+    return <ErrorScreen message={error} />;
   }
 
   return (
@@ -758,55 +723,33 @@ export default function TerminalPage() {
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Bar with Campaign Selector */}
-        <header className="flex items-center justify-between border-b border-outline-variant bg-surface-container-low px-3 py-3 sm:px-6 sm:py-4">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <Link
-              href="/"
-              aria-label="Back to home"
-              title="Back to home"
-              className="rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 sm:h-6 sm:w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                />
-              </svg>
-            </Link>
-            <h1 className="text-lg font-medium text-on-surface sm:text-2xl">{tenant.stations.terminal.heading}</h1>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            {/* Manage Campaign Items Button */}
-            {selectedCampaign && (
-              <button
-                onClick={() => setIsManageItemsModalOpen(true)}
-                className="flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-high sm:px-4"
-                title="Manage items for this campaign"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-                <span className="hidden sm:inline">Manage Items</span>
-              </button>
-            )}
-            <ThemeToggle />
-            <CampaignSelector
-              campaigns={campaigns}
-              selectedCampaign={selectedCampaign}
-              onSelectCampaign={setSelectedCampaign}
-              onCreateCampaign={handleCreateCampaign}
-              onToggleCampaignActive={handleToggleCampaignActive}
-            />
-          </div>
-        </header>
+        <StationHeader
+          title={tenant.stations.terminal.heading}
+          actions={
+            <>
+              {selectedCampaign && (
+                <button
+                  onClick={() => setIsManageItemsModalOpen(true)}
+                  className="flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-high sm:px-4"
+                  title="Manage items for this campaign"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                  <span className="hidden sm:inline">Manage Items</span>
+                </button>
+              )}
+              <ThemeToggle />
+              <CampaignSelector
+                campaigns={campaigns}
+                selectedCampaign={selectedCampaign}
+                onSelectCampaign={setSelectedCampaign}
+                onCreateCampaign={handleCreateCampaign}
+                onToggleCampaignActive={handleToggleCampaignActive}
+              />
+            </>
+          }
+        />
 
         {/* Category Tabs */}
         <CategoryTabs
@@ -832,23 +775,10 @@ export default function TerminalPage() {
         onClick={() => setIsCartOpen(true)}
         className="fixed bottom-6 right-6 z-40 flex h-14 items-center gap-2 rounded-full bg-primary px-5 text-on-primary shadow-[var(--md-elevation-3)] transition-transform active:scale-95 lg:hidden"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-          />
-        </svg>
+        <CartIcon className="h-6 w-6" />
         {cartItems.length > 0 && (
           <span className="font-medium">
-            {cartItems.length} · {formatCurrency(calculateTotal())}
+            {cartItems.length} · {formatCurrency(total)}
           </span>
         )}
       </button>
@@ -864,7 +794,7 @@ export default function TerminalPage() {
         onPlaceOrder={handlePlaceOrder}
         isSubmitting={isPlacingOrder}
         onEditCartItem={handleEditCartItem}
-        total={calculateTotal()}
+        total={total}
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         recentOrders={recentOrders}
