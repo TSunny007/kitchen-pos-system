@@ -14,6 +14,7 @@ export type { User, Session } from "./auth";
 // Re-export campaign functions
 export {
   getCampaigns,
+  firstActiveCampaign,
   createCampaign,
   updateCampaign,
 } from "./campaigns";

@@ -6,6 +6,7 @@ import { Campaign, Category, Order, OrderItemStatus } from "../types";
 import { aggregateItemStatus, ITEM_STATUS_CONFIG } from "../lib/orderStatus";
 import {
   getCampaigns,
+  firstActiveCampaign,
   getCategories,
   getKitchenOrders,
   updateMultipleOrderItemsStatus,
@@ -86,7 +87,7 @@ export default function KitchenPage() {
 
         // Default to the first active campaign, without disturbing a
         // selection the user has already made.
-        const activeCampaign = campaignsData.find((c) => c.is_active);
+        const activeCampaign = firstActiveCampaign(campaignsData);
         if (activeCampaign) {
           setSelectedCampaign((current) => current ?? activeCampaign);
         }

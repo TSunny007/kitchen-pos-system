@@ -66,6 +66,24 @@ export default function CampaignSelector({
     }
   };
 
+  /**
+   * Resuming an archived campaign is one intent, so it is one action:
+   * reactivate it, select it, and get out of the way. Reactivating without
+   * selecting would leave the operator staring at the same empty terminal -
+   * which is exactly the state they opened the picker to escape.
+   */
+  const handleResumeCampaign = async (campaign: Campaign) => {
+    if (!onToggleCampaignActive) return;
+
+    try {
+      await onToggleCampaignActive(campaign.id, true);
+      onSelectCampaign({ ...campaign, is_active: true });
+      setIsOpen(false);
+    } catch (err) {
+      console.error("Error reactivating campaign:", err);
+    }
+  };
+
   const handleToggleActive = async (e: React.MouseEvent, campaign: Campaign) => {
     e.stopPropagation();
     if (!onToggleCampaignActive) return;
@@ -115,7 +133,7 @@ export default function CampaignSelector({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl bg-surface-container-low shadow-[var(--md-elevation-2)]">
+        <div className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-80 overflow-y-auto rounded-xl bg-surface-container-low shadow-[var(--md-elevation-2)]">
           <div className="p-2">
             {/* Create new campaign */}
             {onCreateCampaign && (
@@ -242,45 +260,25 @@ export default function CampaignSelector({
                 <p className="mt-2 px-3 py-2 text-xs font-medium text-on-surface-variant">
                   Inactive Campaigns
                 </p>
-                {inactiveCampaigns.slice(0, 5).map((campaign) => (
-                  <div
+                {inactiveCampaigns.map((campaign) => (
+                  <button
                     key={campaign.id}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 opacity-60 hover:bg-surface-container-high hover:opacity-100"
+                    type="button"
+                    onClick={() => handleResumeCampaign(campaign)}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left opacity-60 hover:bg-surface-container-high hover:opacity-100"
+                    title="Reactivate and switch to this campaign"
                   >
-                    <button
-                      type="button"
-                      onClick={() => onToggleCampaignActive(campaign.id, true)}
-                      className="flex flex-1 items-center gap-3 text-left"
-                      title="Click to reactivate"
-                    >
-                      <div className="h-2 w-2 rounded-full bg-outline" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate text-on-surface">{campaign.name}</p>
-                        {campaign.starts_at && (
-                          <p className="text-xs text-on-surface-variant">
-                            {formatDate(campaign.starts_at)}
-                          </p>
-                        )}
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleToggleActive(e, campaign)}
-                      className="shrink-0 rounded p-1 text-on-surface-variant hover:bg-surface-container hover:text-success"
-                      title="Reactivate campaign"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </button>
-                  </div>
+                    <div className="h-2 w-2 shrink-0 rounded-full bg-outline" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-on-surface">{campaign.name}</p>
+                      {campaign.starts_at && (
+                        <p className="text-xs text-on-surface-variant">
+                          {formatDate(campaign.starts_at)}
+                        </p>
+                      )}
+                    </div>
+                  </button>
                 ))}
-                {inactiveCampaigns.length > 5 && (
-                  <p className="px-3 py-1 text-center text-xs text-on-surface-variant">
-                    +{inactiveCampaigns.length - 5} more archived
-                  </p>
-                )}
               </>
             )}
           </div>

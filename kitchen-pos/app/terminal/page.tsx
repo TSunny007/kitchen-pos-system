@@ -17,6 +17,7 @@ import { useRequireAuth } from "../lib/useRequireAuth";
 import { tenant } from "../config/tenant";
 import {
   getCampaigns,
+  firstActiveCampaign,
   getCategories,
   getItems,
   getItemsForCampaign,
@@ -108,16 +109,18 @@ export default function TerminalPage() {
       try {
         setIsLoading(true);
         setError(null);
-        const campaignsData = await getCampaigns();
+        // The picker offers to reactivate archived campaigns, so this is the
+        // one screen that needs them.
+        const campaignsData = await getCampaigns({ includeArchived: true });
         setCampaigns(campaignsData);
 
-        // Default to the first active campaign, without disturbing a
-        // selection the user has already made. If every campaign is
-        // archived, leave selection empty rather than open the terminal on
-        // one - taking orders against an archived campaign is worse than an
-        // empty menu, and the page already renders fine with no campaign
-        // selected (empty category/item lists until one is picked).
-        const activeCampaign = campaignsData.find((c) => c.is_active);
+        // Default to the most recent active campaign, without disturbing a
+        // selection the user has already made. If every campaign is archived
+        // we select nothing: opening the terminal on an archive would have it
+        // quietly taking orders against a closed event. The main area says so
+        // and points at the picker, because a campaign-less terminal is
+        // otherwise a dead end - see the note at the top of supabase/seed.sql.
+        const activeCampaign = firstActiveCampaign(campaignsData);
         if (activeCampaign) {
           setSelectedCampaign((current) => current ?? activeCampaign);
         }
@@ -532,6 +535,13 @@ export default function TerminalPage() {
     image_url?: string | null;
     no_prep_needed?: boolean;
   }) => {
+    // Without a campaign the new item would be linked to nothing, and an
+    // unlinked item shows up on no screen at all. Fail loudly instead - the
+    // modal surfaces this message inline.
+    if (!selectedCampaign) {
+      throw new Error("Pick a campaign before adding items - new items are added to the current campaign.");
+    }
+
     try {
       const newItem = await createItem({
         ...itemData,
@@ -767,11 +777,24 @@ export default function TerminalPage() {
 
         {/* Items Grid */}
         <main className="flex-1 overflow-y-auto p-3 pb-24 sm:p-6 sm:pb-6">
-          <ItemGrid 
-            items={filteredItems} 
-            onItemClick={handleItemClick}
-            onAddItemClick={() => setIsAddItemModalOpen(true)} 
-          />
+          {/* Every creation flow here attaches to a campaign, so with none
+              selected the grid is a dead end rather than an empty state.
+              Say so and point at the picker. */}
+          {selectedCampaign ? (
+            <ItemGrid
+              items={filteredItems}
+              onItemClick={handleItemClick}
+              onAddItemClick={() => setIsAddItemModalOpen(true)}
+            />
+          ) : (
+            <div className="flex h-64 flex-col items-center justify-center px-6 text-center">
+              <p className="text-on-surface">No campaign selected</p>
+              <p className="mt-1 text-sm text-on-surface-variant">
+                Pick one from the campaign menu to start taking orders. Past
+                campaigns are listed there too, under Inactive.
+              </p>
+            </div>
+          )}
         </main>
       </div>
 
