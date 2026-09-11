@@ -4,6 +4,8 @@ import { useState } from "react";
 import { OrderItem, Modifier } from "../../types";
 import Modal from "../Modal";
 import { formatCurrency, formatPriceDelta } from "../../lib/format";
+import { MinusIcon, PlusIcon } from "../icons";
+import { lineTotal } from "../../lib/pricing";
 
 interface OrderItemEditModalProps {
   orderItem: OrderItem;
@@ -42,12 +44,10 @@ export default function OrderItemEditModal({
   };
 
   const calculateTotal = () => {
-    const basePrice = orderItem.item?.base_price || 0;
-    const modifiersPrice = selectedModifierIds.reduce((sum, modId) => {
-      const modifier = availableModifiers.find((m) => m.id === modId);
-      return sum + (modifier?.price_delta || 0);
-    }, 0);
-    return (basePrice + modifiersPrice) * quantity;
+    const deltas = selectedModifierIds
+      .map((modId) => availableModifiers.find((m) => m.id === modId))
+      .filter((m): m is Modifier => m !== undefined);
+    return lineTotal(orderItem.item?.base_price || 0, deltas, quantity);
   };
 
   const handleSave = async () => {
@@ -95,20 +95,7 @@ export default function OrderItemEditModal({
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-container-high text-on-surface transition-colors hover:bg-surface-container-highest"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20 12H4"
-                />
-              </svg>
+              <MinusIcon className="h-5 w-5" />
             </button>
             <span className="w-12 text-center text-xl font-semibold text-on-surface">
               {quantity}
@@ -117,20 +104,7 @@ export default function OrderItemEditModal({
               onClick={() => setQuantity(quantity + 1)}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-container-high text-on-surface transition-colors hover:bg-surface-container-highest"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
+              <PlusIcon className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -212,7 +186,7 @@ export default function OrderItemEditModal({
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Add any special requests..."
             rows={3}
-            className="w-full rounded-lg border border-outline bg-transparent px-4 py-3 text-on-surface placeholder-on-surface-variant focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-lg border border-outline bg-transparent px-4 py-3 text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
       </div>

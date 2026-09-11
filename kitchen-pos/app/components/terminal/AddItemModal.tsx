@@ -6,6 +6,7 @@ import CategoryPicker from "./CategoryPicker";
 import ModifierPicker from "./ModifierPicker";
 import Modal from "../Modal";
 import PriceInput from "./PriceInput";
+import { CheckIcon } from "../icons";
 
 interface AddItemModalProps {
   categories: Category[];
@@ -228,16 +229,7 @@ export default function AddItemModal({
                 }`}
               >
                 {noPrepNeeded && (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={3}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
+                  <CheckIcon className="h-4 w-4" strokeWidth={3} />
                 )}
               </div>
             </button>

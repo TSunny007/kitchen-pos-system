@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { Item, Category, Campaign } from "../../types";
 import { formatCurrency } from "../../lib/format";
 import Modal from "../Modal";
+import { CheckIcon } from "../icons";
 
 interface ManageCampaignItemsModalProps {
   campaign: Campaign | null;
@@ -14,6 +15,21 @@ interface ManageCampaignItemsModalProps {
   onClose: () => void;
   onToggleItem: (itemId: number, isCurrentlyLinked: boolean) => Promise<void>;
   onUpdateStock: (itemId: number, stock: number | null) => Promise<void>;
+}
+
+/**
+ * The busy indicator this screen uses, in two sizes. A quarter-arc rather than
+ * the two-arc `SpinnerIcon` in `components/icons`, and it puts `fill="none"` on
+ * the circle rather than the svg — a different glyph, so it stays local rather
+ * than being folded in and silently redrawn.
+ */
+function StockSpinner({ className }: { className: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  );
 }
 
 export default function ManageCampaignItemsModal({
@@ -232,9 +248,7 @@ export default function ManageCampaignItemsModal({
                         }`}
                       >
                         {isLinked && (
-                          <svg className="h-4 w-4 text-on-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
+                          <CheckIcon className="h-4 w-4 text-on-primary" strokeWidth={3} />
                         )}
                       </div>
 
@@ -281,10 +295,7 @@ export default function ManageCampaignItemsModal({
                           />
                           {isSavingStock && (
                             <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-surface/80">
-                              <svg className="h-4 w-4 animate-spin text-primary" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                              </svg>
+                              <StockSpinner className="h-4 w-4 animate-spin text-primary" />
                             </div>
                           )}
                         </div>
@@ -293,10 +304,7 @@ export default function ManageCampaignItemsModal({
 
                     {/* Loading spinner for toggle */}
                     {isLoading && (
-                      <svg className="h-5 w-5 shrink-0 animate-spin text-primary" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
+                      <StockSpinner className="h-5 w-5 shrink-0 animate-spin text-primary" />
                     )}
                   </div>
                 );

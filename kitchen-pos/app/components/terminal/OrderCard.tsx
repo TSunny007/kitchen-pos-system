@@ -4,12 +4,13 @@ import { useState } from "react";
 import { Order, OrderItem } from "../../types";
 import { formatCurrency, formatPriceDelta, formatClockTime, formatTimeSince } from "../../lib/format";
 import { useElapsedMs } from "../../lib/useElapsed";
+import { lineTotal } from "../../lib/pricing";
+import { ChevronDownIcon, CheckIcon, TrashIcon } from "../icons";
 
 interface OrderCardProps {
   order: Order;
   onEditItem?: (orderItem: OrderItem) => void;
   onDeleteItem?: (orderItemId: number) => void;
-  compact?: boolean;
   editable?: boolean;
 }
 
@@ -17,7 +18,6 @@ export default function OrderCard({
   order,
   onEditItem,
   onDeleteItem,
-  compact = false,
   editable = false,
 }: OrderCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -25,15 +25,6 @@ export default function OrderCard({
   const elapsedMs = useElapsedMs(order.created_at);
   const timeSince =
     elapsedMs === null ? null : formatTimeSince(order.created_at, elapsedMs);
-
-  const calculateItemPrice = (orderItem: OrderItem): number => {
-    const basePrice = orderItem.item?.base_price || 0;
-    const modifiersPrice = orderItem.modifiers?.reduce(
-      (sum, mod) => sum + mod.price_delta,
-      0
-    ) || 0;
-    return (basePrice + modifiersPrice) * orderItem.quantity;
-  };
 
   const canEdit = editable && (order.status === "new" || order.status === "in_progress");
   const itemCount = order.order_items?.length || 0;
@@ -48,14 +39,14 @@ export default function OrderCard({
       {/* Header - Customer name and status badge */}
       <div
         className="flex cursor-pointer items-start justify-between gap-2 p-4"
-        onClick={() => !compact && setIsExpanded(!isExpanded)}
+        onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h3 className="truncate text-base font-semibold text-on-surface">
               {order.customer_name}
             </h3>
-            {!compact && itemCount > 0 && (
+            {itemCount > 0 && (
               <span className="shrink-0 rounded-full bg-surface-container-high px-2 py-0.5 text-xs text-on-surface-variant">
                 {itemCount} item{itemCount !== 1 ? "s" : ""}
               </span>
@@ -67,7 +58,7 @@ export default function OrderCard({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {!compact && itemCount > 0 && (
+          {itemCount > 0 && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -75,27 +66,14 @@ export default function OrderCard({
               }}
               className="flex h-6 w-6 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
+              <ChevronDownIcon className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
             </button>
           )}
         </div>
       </div>
 
       {/* Collapsed preview - show first 3 items */}
-      {!compact && !isExpanded && order.order_items && order.order_items.length > 0 && (
+      {!isExpanded && order.order_items && order.order_items.length > 0 && (
         <div className="border-t border-outline-variant px-4 py-2">
           <div className="space-y-1">
             {order.order_items.slice(0, 3).map((orderItem) => (
@@ -112,7 +90,7 @@ export default function OrderCard({
                   )}
                 </span>
                 <span className="shrink-0 text-on-surface-variant">
-                  {formatCurrency(calculateItemPrice(orderItem))}
+                  {formatCurrency(lineTotal(orderItem.item?.base_price || 0, orderItem.modifiers ?? [], orderItem.quantity))}
                 </span>
               </div>
             ))}
@@ -126,7 +104,7 @@ export default function OrderCard({
       )}
 
       {/* Expanded itemized list */}
-      {!compact && isExpanded && order.order_items && order.order_items.length > 0 && (
+      {isExpanded && order.order_items && order.order_items.length > 0 && (
         <div className="border-t border-outline-variant">
           <div className="divide-y divide-outline-variant">
             {order.order_items.map((orderItem) => (
@@ -143,9 +121,7 @@ export default function OrderCard({
                       "bg-surface-container-high text-on-surface-variant"
                     }`}>
                       {orderItem.status === "done" ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
+                        <CheckIcon className="h-4 w-4" strokeWidth={3} />
                       ) : orderItem.status === "in_progress" ? (
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -188,7 +164,7 @@ export default function OrderCard({
                   
                   <div className="flex flex-col items-end gap-1">
                     <span className="font-semibold text-on-surface">
-                      {formatCurrency(calculateItemPrice(orderItem))}
+                      {formatCurrency(lineTotal(orderItem.item?.base_price || 0, orderItem.modifiers ?? [], orderItem.quantity))}
                     </span>
                     
                     {/* Edit/Delete buttons */}
@@ -230,20 +206,7 @@ export default function OrderCard({
                             className="rounded p-1 text-on-surface-variant transition-colors hover:bg-error-container hover:text-on-error-container"
                             title="Remove item"
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
+                            <TrashIcon className="h-4 w-4" />
                           </button>
                         )}
                       </div>
@@ -253,15 +216,6 @@ export default function OrderCard({
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Compact view - just item count */}
-      {compact && order.order_items && (
-        <div className="px-4 pb-4">
-          <p className="text-sm text-on-surface-variant">
-            {order.order_items.length} item{order.order_items.length !== 1 ? "s" : ""}
-          </p>
         </div>
       )}
 
@@ -277,6 +231,9 @@ export default function OrderCard({
         {/* Time info */}
         <div className="text-right text-xs text-on-surface-variant">
           <p>Ordered: {formatClockTime(order.created_at)}</p>
+          {/* `updated_at` is typed non-optional, but a partial realtime payload
+              can still arrive without it, and formatClockTime renders "—" for
+              an unparseable date. Omit the line rather than show "Completed: —". */}
           {isCompleted && order.updated_at && (
             <p className="text-primary font-medium">Completed: {formatClockTime(order.updated_at)}</p>
           )}

@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { Item, Modifier } from "../../types";
-import Modal, { CloseIcon } from "../Modal";
+import Modal from "../Modal";
+import { CloseIcon, BoxIcon, TrashIcon, MinusIcon, PlusIcon, CheckIcon, SpinnerIcon } from "../icons";
 import { formatCurrency, formatPriceDelta } from "../../lib/format";
+import { lineTotal } from "../../lib/pricing";
 import PriceInput from "./PriceInput";
 
 interface ItemDetailModalProps {
@@ -74,15 +76,6 @@ export default function ItemDetailModal({
   
   // Check if modifier management is enabled
   const canManageModifiers = onCreateModifier || onLinkModifier || onUnlinkModifier;
-
-  const calculateTotal = (): number => {
-    const baseTotal = item.base_price * quantity;
-    const modifiersTotal = selectedModifiers.reduce(
-      (sum, mod) => sum + mod.price_delta * quantity,
-      0
-    );
-    return baseTotal + modifiersTotal;
-  };
 
   const toggleModifier = (modifier: Modifier) => {
     setSelectedModifiers((prev) => {
@@ -196,20 +189,7 @@ export default function ItemDetailModal({
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-16 w-16 text-outline-variant sm:h-20 sm:w-20"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  />
-                </svg>
+                <BoxIcon className="h-16 w-16 text-outline-variant sm:h-20 sm:w-20" />
               </div>
             )}
             {/* Close button */}
@@ -267,9 +247,7 @@ export default function ItemDetailModal({
                       className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant hover:bg-error-container hover:text-on-error-container transition-colors"
                       title="Delete item"
                     >
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
+                      <TrashIcon className="h-5 w-5" />
                     </button>
                   )}
                 </div>
@@ -295,20 +273,7 @@ export default function ItemDetailModal({
                 disabled={isSoldOut}
                 className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-high text-on-surface transition-colors hover:bg-surface-container-highest disabled:opacity-40"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 12H4"
-                  />
-                </svg>
+                <MinusIcon className="h-6 w-6" />
               </button>
               <span className="w-12 text-center text-2xl font-semibold text-on-surface">
                 {quantity}
@@ -318,20 +283,7 @@ export default function ItemDetailModal({
                 disabled={isSoldOut || quantity >= maxQuantity}
                 className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-high text-on-surface transition-colors hover:bg-surface-container-highest disabled:opacity-40"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
+                <PlusIcon className="h-6 w-6" />
               </button>
             </div>
           </div>
@@ -378,20 +330,7 @@ export default function ItemDetailModal({
                           }`}
                         >
                           {isSelected && (
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={3}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
+                            <CheckIcon className="h-4 w-4" strokeWidth={3} />
                           )}
                         </div>
                         <span className={`font-medium ${isSelected ? "text-on-secondary-container" : "text-on-surface"}`}>
@@ -498,14 +437,9 @@ export default function ItemDetailModal({
                                 title={confirmDeleteModifierId === modifier.id ? "Click again to delete permanently" : "Delete modifier"}
                               >
                                 {deletingModifierId === modifier.id ? (
-                                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                  </svg>
+                                  <SpinnerIcon className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
+                                  <TrashIcon className="h-4 w-4" />
                                 )}
                               </button>
                             )}
@@ -533,9 +467,7 @@ export default function ItemDetailModal({
                                 ({formatPriceDelta(modifier.price_delta)})
                               </span>
                             )}
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
+                            <PlusIcon className="h-4 w-4" />
                           </button>
                         ))}
                       </div>
@@ -554,7 +486,7 @@ export default function ItemDetailModal({
                               value={newModifierName}
                               onChange={(e) => setNewModifierName(e.target.value)}
                               placeholder="Modifier name"
-                              className="flex-1 rounded-lg border border-outline bg-transparent px-3 py-2 text-sm text-on-surface placeholder-on-surface-variant focus:border-primary focus:outline-none"
+                              className="flex-1 rounded-lg border border-outline bg-transparent px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
                             />
                             <PriceInput
                               value={newModifierPrice}
@@ -593,9 +525,7 @@ export default function ItemDetailModal({
                           onClick={() => setIsCreatingModifier(true)}
                           className="flex items-center gap-2 text-sm text-primary hover:underline"
                         >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
+                          <PlusIcon className="h-4 w-4" />
                           Create New Modifier
                         </button>
                       )}
@@ -616,7 +546,7 @@ export default function ItemDetailModal({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add any special requests..."
               rows={2}
-              className="w-full rounded-lg border border-outline bg-transparent px-4 py-3 text-on-surface placeholder-on-surface-variant focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-lg border border-outline bg-transparent px-4 py-3 text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
@@ -632,7 +562,7 @@ export default function ItemDetailModal({
             >
               <span>{isEditMode ? "Update Item" : "Add to Order"}</span>
               <span className="rounded-full bg-on-primary/20 px-3 py-1">
-                {formatCurrency(calculateTotal())}
+                {formatCurrency(lineTotal(item.base_price, selectedModifiers, quantity))}
               </span>
             </button>
           )}

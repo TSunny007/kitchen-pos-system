@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "../providers/AuthProvider";
+import { useRequireAuth } from "../lib/useRequireAuth";
 import { Campaign, Category, Order, OrderItemStatus } from "../types";
 import { aggregateItemStatus, ITEM_STATUS_CONFIG } from "../lib/orderStatus";
 import {
@@ -16,7 +15,9 @@ import ThemeToggle from "../components/ThemeToggle";
 import CampaignSelector from "../components/terminal/CampaignSelector";
 import KitchenOrderCard from "../components/kitchen/KitchenOrderCard";
 import Modal from "../components/Modal";
-import Link from "next/link";
+import StationHeader from "../components/StationHeader";
+import { LoadingScreen, ErrorScreen } from "../components/StatusScreen";
+import { RefreshIcon } from "../components/icons";
 import { tenant } from "../config/tenant";
 
 // Single source of truth for the swimlane columns: labels come from the
@@ -55,8 +56,7 @@ const SWIMLANE_CONFIG: Record<
 const SWIMLANES = Object.keys(SWIMLANE_CONFIG) as Swimlane[];
 
 export default function KitchenPage() {
-  const router = useRouter();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useRequireAuth();
 
   // Data state
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -72,13 +72,6 @@ export default function KitchenPage() {
   // Empty set = show all swimlanes/columns. Non-empty = opt-in union filter.
   const [selectedSwimlanes, setSelectedSwimlanes] = useState<Set<Swimlane>>(new Set());
   const [isDisplayOptionsOpen, setIsDisplayOptionsOpen] = useState(false);
-
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/");
-    }
-  }, [authLoading, user, router]);
 
   // Load campaigns on mount
   useEffect(() => {
@@ -321,115 +314,57 @@ export default function KitchenPage() {
 
   // Loading state
   if (authLoading || isLoading || !user) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-surface">
-        <div className="text-center">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
-          <p className="text-on-surface-variant">Loading kitchen display...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message="Loading kitchen display..." />;
   }
 
-  // Error state
   if (error) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-surface">
-        <div className="text-center">
-          <p className="text-error mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="rounded-full bg-primary px-6 py-2 text-on-primary"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
+    return <ErrorScreen message={error} />;
   }
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface">
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-outline-variant bg-surface-container-low px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center gap-3 sm:gap-4">
-          <Link
-            href="/"
-            className="rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 sm:h-6 sm:w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+      <StationHeader
+        title={tenant.stations.kitchen.heading}
+        subtitle={`${filteredOrders.length} active order${filteredOrders.length !== 1 ? "s" : ""} • Live`}
+        actions={
+          <>
+            <button
+              onClick={handleRefresh}
+              className="rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+              title="Refresh orders"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-          </Link>
-          <div>
-            <h1 className="text-lg font-medium text-on-surface sm:text-2xl">
-              {tenant.stations.kitchen.heading}
-            </h1>
-            <p className="text-xs text-on-surface-variant sm:text-sm">
-              {filteredOrders.length} active order{filteredOrders.length !== 1 ? "s" : ""} • Live
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-4">
-          <button
-            onClick={handleRefresh}
-            className="rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
-            title="Refresh orders"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 sm:h-6 sm:w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+              <RefreshIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+            </button>
+            <button
+              onClick={() => setIsDisplayOptionsOpen(true)}
+              className="relative flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-high sm:px-4"
+              title="Display options"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-          </button>
-          <button
-            onClick={() => setIsDisplayOptionsOpen(true)}
-            className="relative flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-high sm:px-4"
-            title="Display options"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z"
-              />
-            </svg>
-            <span className="hidden sm:inline">Display Options</span>
-            {activeFilterCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-on-primary">
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
-          <ThemeToggle />
-          <CampaignSelector
-            campaigns={campaigns}
-            selectedCampaign={selectedCampaign}
-            onSelectCampaign={setSelectedCampaign}
-          />
-        </div>
-      </header>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z"
+                />
+              </svg>
+              <span className="hidden sm:inline">Display Options</span>
+              {activeFilterCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-on-primary">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            <ThemeToggle />
+            <CampaignSelector
+              campaigns={campaigns}
+              selectedCampaign={selectedCampaign}
+              onSelectCampaign={setSelectedCampaign}
+            />
+          </>
+        }
+      />
 
       {/* Main Content - Order Columns by Item Status */}
       <main className="flex flex-1 gap-4 overflow-x-auto p-4">

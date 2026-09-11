@@ -8,6 +8,7 @@ import type {
 } from "@/app/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { aggregateItemStatus } from "@/app/lib/orderStatus";
+import { cartTotal } from "@/app/lib/pricing";
 
 // Shared PostgREST select shapes - these were repeated verbatim across the
 // order queries, so a change to what the kitchen or terminal needs had to be
@@ -44,15 +45,9 @@ export interface CreateOrderInput {
 export async function createOrder(input: CreateOrderInput): Promise<Order> {
   const { campaign_id, customer_name, notes, items } = input;
 
-  // Calculate subtotal
-  const subtotal = items.reduce((total, cartItem) => {
-    const itemTotal = cartItem.item.base_price * cartItem.quantity;
-    const modifiersTotal = cartItem.modifiers.reduce(
-      (sum, mod) => sum + mod.price_delta * cartItem.quantity,
-      0
-    );
-    return total + itemTotal + modifiersTotal;
-  }, 0);
+  // Shares `cartTotal` with the cart UI, so the price we quote and the price
+  // we store are the same expression rather than two that agree today.
+  const subtotal = cartTotal(items);
 
   // 1. Create the order
   const { data: order, error: orderError } = await supabase
