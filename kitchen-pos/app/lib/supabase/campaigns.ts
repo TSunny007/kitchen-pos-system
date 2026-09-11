@@ -2,13 +2,15 @@ import { supabase } from "./client";
 import type { Campaign } from "@/app/types";
 
 /**
- * Fetch all active campaigns, ordered by start date (most recent first)
+ * Fetch all campaigns, active and archived, ordered by start date (most
+ * recent first). Archived ones stay in the result so the campaign picker
+ * can list and reactivate them - callers that only want active campaigns
+ * filter client-side (see CampaignSelector).
  */
 export async function getCampaigns(): Promise<Campaign[]> {
   const { data, error } = await supabase
     .from("campaigns")
     .select("*")
-    .eq("is_active", true)
     .order("starts_at", { ascending: false });
 
   if (error) {

@@ -111,10 +111,15 @@ export default function TerminalPage() {
         const campaignsData = await getCampaigns();
         setCampaigns(campaignsData);
 
-        // Default to the first campaign, without disturbing a selection the
-        // user has already made.
-        if (campaignsData.length > 0) {
-          setSelectedCampaign((current) => current ?? campaignsData[0]);
+        // Default to the first active campaign, without disturbing a
+        // selection the user has already made. If every campaign is
+        // archived, leave selection empty rather than open the terminal on
+        // one - taking orders against an archived campaign is worse than an
+        // empty menu, and the page already renders fine with no campaign
+        // selected (empty category/item lists until one is picked).
+        const activeCampaign = campaignsData.find((c) => c.is_active);
+        if (activeCampaign) {
+          setSelectedCampaign((current) => current ?? activeCampaign);
         }
       } catch (err) {
         console.error("Error loading campaigns:", err);

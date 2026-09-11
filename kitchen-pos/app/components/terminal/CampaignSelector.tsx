@@ -234,8 +234,10 @@ export default function CampaignSelector({
               ))
             )}
 
-            {/* Inactive campaigns */}
-            {inactiveCampaigns.length > 0 && (
+            {/* Inactive campaigns - reactivating is a terminal/manager
+                action, so this whole section only shows up where a toggle
+                handler was actually wired in (not on the kitchen display). */}
+            {inactiveCampaigns.length > 0 && onToggleCampaignActive && (
               <>
                 <p className="mt-2 px-3 py-2 text-xs font-medium text-on-surface-variant">
                   Inactive Campaigns
@@ -247,11 +249,7 @@ export default function CampaignSelector({
                   >
                     <button
                       type="button"
-                      onClick={() => {
-                        if (onToggleCampaignActive) {
-                          onToggleCampaignActive(campaign.id, true);
-                        }
-                      }}
+                      onClick={() => onToggleCampaignActive(campaign.id, true)}
                       className="flex flex-1 items-center gap-3 text-left"
                       title="Click to reactivate"
                     >
@@ -265,21 +263,24 @@ export default function CampaignSelector({
                         )}
                       </div>
                     </button>
-                    {onToggleCampaignActive && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleToggleActive(e, campaign)}
-                        className="shrink-0 rounded p-1 text-on-surface-variant hover:bg-surface-container hover:text-success"
-                        title="Reactivate campaign"
-                      >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleActive(e, campaign)}
+                      className="shrink-0 rounded p-1 text-on-surface-variant hover:bg-surface-container hover:text-success"
+                      title="Reactivate campaign"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
                   </div>
                 ))}
+                {inactiveCampaigns.length > 5 && (
+                  <p className="px-3 py-1 text-center text-xs text-on-surface-variant">
+                    +{inactiveCampaigns.length - 5} more archived
+                  </p>
+                )}
               </>
             )}
           </div>
