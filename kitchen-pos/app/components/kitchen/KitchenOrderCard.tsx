@@ -133,8 +133,25 @@ export default function KitchenOrderCard({
       <div className="divide-y divide-outline-variant">
           {filteredItems.map((orderItem) => {
             const itemStatusConfig = ITEM_STATUS_CONFIG[orderItem.status];
-            const isInProgress = orderItem.status === "in_progress";
             const isDone = orderItem.status === "done";
+
+            // Anything still outstanding can be ticked off directly.
+            //
+            // This used to require the item's own status to be "in_progress",
+            // which stranded any order that reached this lane without a cook
+            // tapping it first. An order containing a no-prep item (created
+            // "done" at order time) aggregates to in_progress the moment it is
+            // placed, so it skips New entirely - and then its remaining items
+            // were still "new", so no row offered a checkbox and the card was
+            // no longer tappable either. Nothing could advance it.
+            //
+            // A New card is itself the "start preparing" button, so its rows
+            // must not also be buttons; that is the one place this stays off.
+            const canTickOff =
+              !isTappableToStart &&
+              !!onItemStatusChange &&
+              orderItem.status !== "done" &&
+              orderItem.status !== "cancelled";
 
             return (
               <div
@@ -142,8 +159,7 @@ export default function KitchenOrderCard({
                 className={`px-4 py-3 ${isDone ? "bg-primary-container/20" : ""}`}
               >
                 <div className="flex items-start gap-3">
-                  {/* Checkbox only for in_progress items */}
-                  {isInProgress && onItemStatusChange && (
+                  {canTickOff && (
                     <button
                       onClick={() => handleItemDone(orderItem.id)}
                       className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 border-secondary bg-surface text-secondary transition-all hover:bg-secondary hover:text-on-secondary active:scale-95"
