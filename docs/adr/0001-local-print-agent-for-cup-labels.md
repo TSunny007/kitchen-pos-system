@@ -1,0 +1,7 @@
+# Local Print Agent bridges the app to the Cup Label printer
+
+The app is Vercel-hosted with no server-side integration today (`app/lib/supabase/server.ts`'s service-role client is never called; everything runs client-side against the anon key). The thermal printer that produces Cup Labels lives on the pop-up venue's local network, which Vercel cannot reach directly, and the printer has no cloud API of its own. We considered browser-direct printing (WebUSB/WebSerial from the Kitchen Display device) but that ties the printer to one specific device and browser, which doesn't fit a Kitchen Display that may run on a tablet or get swapped between events.
+
+We're instead introducing a **Print Agent**: a standalone process on the venue's LAN that subscribes to a `print_jobs` table via Supabase Realtime and forwards each job to the printer directly. The app writes a Print Job when an OrderItem moves to `in_progress`; it never talks to the printer itself.
+
+We're also deliberately building for the pessimistic case first: the app has no way to know whether a physical print succeeded, so a Print Job is marked "handed off," not "confirmed printed," and the Kitchen Display gets no failure indicator or reprint UI in v1 — a misprint falls back to the existing permanent-marker process, unchanged. If a specific printer model turns out to support print acknowledgment, auto-retry can be added later without reworking this shape.
