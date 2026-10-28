@@ -29,6 +29,7 @@ interface MetricsItem {
 interface MetricsOrderItem {
   id: number;
   item_id: number;
+  quantity: number;
   status: OrderItemStatus;
   created_at: string;
   item: MetricsItem | null;
@@ -36,7 +37,7 @@ interface MetricsOrderItem {
   status_events: MetricsStatusEvent[];
 }
 
-interface MetricsOrder {
+export interface MetricsOrder {
   id: number;
   created_at: string;
   status: OrderStatus;
@@ -61,6 +62,7 @@ export async function getCampaignOrdersForMetrics(
       order_items (
         id,
         item_id,
+        quantity,
         status,
         created_at,
         item:items ( id, name, base_price, no_prep_needed, category:categories ( id, name ) ),
@@ -79,6 +81,15 @@ export async function getCampaignOrdersForMetrics(
   return (data || []) as unknown as MetricsOrder[];
 }
 
+function spansMultipleDays(orders: MetricsOrder[]): boolean {
+  const days = new Set(
+    orders
+      .filter((order) => order.status !== "cancelled")
+      .map((order) => new Date(order.created_at).toDateString())
+  );
+  return days.size > 1;
+}
+
 /**
  * A single day if it fits on one calendar day (local time), otherwise
  * bucket by day rather than defaulting every multi-day campaign to hourly.
@@ -86,12 +97,7 @@ export async function getCampaignOrdersForMetrics(
 export function inferDefaultGranularity(
   orders: MetricsOrder[]
 ): TimeslotGranularity {
-  const days = new Set(
-    orders
-      .filter((order) => order.status !== "cancelled")
-      .map((order) => new Date(order.created_at).toDateString())
-  );
-  return days.size > 1 ? "day" : "hour";
+  return spansMultipleDays(orders) ? "day" : "hour";
 }
 
 export interface RevenueByItemRow {
@@ -157,27 +163,22 @@ function firstDoneTimestamp(events: MetricsStatusEvent[]): number | null {
   return doneTimes.length > 0 ? Math.min(...doneTimes) : null;
 }
 
+/**
+ * `withDate` makes hourly labels carry the day too — without it a two-day
+ * campaign viewed hourly shows two indistinguishable "5 PM" rows.
+ */
 function bucketFor(
   date: Date,
-  granularity: TimeslotGranularity
+  granularity: TimeslotGranularity,
+  withDate: boolean
 ): { key: string; label: string; start: Date } {
-  if (granularity === "day") {
-    const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    return {
-      key: start.toISOString(),
-      label: formatTimeslotLabel(start, granularity),
-      start,
-    };
-  }
-  const start = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    date.getHours()
-  );
+  const start =
+    granularity === "day"
+      ? new Date(date.getFullYear(), date.getMonth(), date.getDate())
+      : new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours());
   return {
     key: start.toISOString(),
-    label: formatTimeslotLabel(start, granularity),
+    label: formatTimeslotLabel(start, granularity, withDate),
     start,
   };
 }
@@ -196,12 +197,17 @@ interface TimeslotAccumulator extends TimeslotRow {
  * Revenue and item counts are computed straight from Order Items, not the
  * stored `orders.subtotal`, because that column isn't recalculated when an
  * item is individually cancelled (see docs/adr and CONTEXT.md — Revenue).
+ *
+ * Order Items are created at quantity 1, but editing an order can raise
+ * `quantity`, so every count and amount is scaled by it — matching how
+ * `recalculateOrderSubtotal` prices a line.
  */
 export function computeCampaignMetrics(
   orders: MetricsOrder[],
   granularity: TimeslotGranularity
 ): CampaignMetrics {
   const activeOrders = orders.filter((order) => order.status !== "cancelled");
+  const withDate = granularity === "hour" && spansMultipleDays(orders);
 
   let totalRevenue = 0;
   let itemsOrdered = 0;
@@ -221,7 +227,7 @@ export function computeCampaignMetrics(
 
   for (const order of activeOrders) {
     const orderDate = new Date(order.created_at);
-    const bucket = bucketFor(orderDate, granularity);
+    const bucket = bucketFor(orderDate, granularity, withDate);
 
     let slot = timeslots.get(bucket.key);
     if (!slot) {
@@ -263,23 +269,24 @@ export function computeCampaignMetrics(
     for (const orderItem of activeItems) {
       const item = orderItem.item;
       if (!item) continue;
+      const quantity = orderItem.quantity;
 
-      const modifierRevenue = orderItem.modifiers.reduce(
-        (sum, modifier) => sum + modifier.price_delta,
-        0
-      );
-      const lineRevenue = item.base_price + modifierRevenue;
+      const modifierRevenue =
+        orderItem.modifiers.reduce((sum, modifier) => sum + modifier.price_delta, 0) *
+        quantity;
+      const baseRevenue = item.base_price * quantity;
+      const lineRevenue = baseRevenue + modifierRevenue;
 
       totalRevenue += lineRevenue;
-      itemsOrdered += 1;
+      itemsOrdered += quantity;
 
-      slot.itemsOrdered += 1;
+      slot.itemsOrdered += quantity;
       slot.revenue += lineRevenue;
       const slotItem = slot.itemCounts.get(item.id) ?? {
         itemName: item.name,
         quantity: 0,
       };
-      slotItem.quantity += 1;
+      slotItem.quantity += quantity;
       slot.itemCounts.set(item.id, slotItem);
 
       const itemRow = revenueByItem.get(item.id) ?? {
@@ -290,8 +297,8 @@ export function computeCampaignMetrics(
         modifierRevenue: 0,
         revenue: 0,
       };
-      itemRow.quantity += 1;
-      itemRow.baseRevenue += item.base_price;
+      itemRow.quantity += quantity;
+      itemRow.baseRevenue += baseRevenue;
       itemRow.modifierRevenue += modifierRevenue;
       itemRow.revenue += lineRevenue;
       revenueByItem.set(item.id, itemRow);
@@ -307,8 +314,8 @@ export function computeCampaignMetrics(
           quantity: 0,
           revenue: 0,
         };
-        modifierRow.quantity += 1;
-        modifierRow.revenue += modifier.price_delta;
+        modifierRow.quantity += quantity;
+        modifierRow.revenue += modifier.price_delta * quantity;
         revenueByModifier.set(modifierKey, modifierRow);
       }
 
@@ -319,7 +326,7 @@ export function computeCampaignMetrics(
         itemsOrdered: 0,
         revenue: 0,
       };
-      categoryRow.itemsOrdered += 1;
+      categoryRow.itemsOrdered += quantity;
       categoryRow.revenue += lineRevenue;
       revenueByCategory.set(categoryKey, categoryRow);
 

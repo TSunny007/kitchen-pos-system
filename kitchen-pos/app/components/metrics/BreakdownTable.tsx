@@ -46,7 +46,9 @@ export default function BreakdownTable({
               <div className="h-1.5 overflow-hidden rounded-full bg-surface-container-highest">
                 <div
                   className="h-full rounded-full bg-primary"
-                  style={{ width: `${(row.value / maxValue) * 100}%` }}
+                  // Clamped: a discount modifier sums negative, and a negative
+                  // width is dropped by the browser, leaving a full-width bar.
+                  style={{ width: `${Math.max(0, (row.value / maxValue) * 100)}%` }}
                 />
               </div>
             </li>

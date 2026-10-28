@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../providers/AuthProvider";
@@ -11,11 +11,10 @@ import {
   computeCampaignMetrics,
   inferDefaultGranularity,
   TimeslotGranularity,
-  CampaignMetrics,
+  MetricsOrder,
 } from "../lib/supabase";
 import { formatCount, formatCurrency, formatDuration } from "../lib/format";
 import ThemeToggle from "../components/ThemeToggle";
-import CampaignSelector from "../components/terminal/CampaignSelector";
 import StatCard from "../components/metrics/StatCard";
 import BreakdownTable from "../components/metrics/BreakdownTable";
 import TimeslotTable from "../components/metrics/TimeslotTable";
@@ -26,11 +25,12 @@ export default function MetricsPage() {
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
-  const [metrics, setMetrics] = useState<CampaignMetrics | null>(null);
-  const [granularity, setGranularity] = useState<TimeslotGranularity | null>(null);
+  const [orders, setOrders] = useState<MetricsOrder[] | null>(null);
+  const [granularity, setGranularity] = useState<TimeslotGranularity>("hour");
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(true);
   const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const latestRequest = useRef(0);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -61,46 +61,53 @@ export default function MetricsPage() {
     loadCampaigns();
   }, [user]);
 
-  // Takes an explicit granularity rather than reading the `granularity` state
-  // closure — falling back to a stale closure value on campaign switch would
-  // keep the previous campaign's granularity instead of re-inferring a default.
-  const loadMetrics = useCallback(
-    async (campaign: Campaign, requestedGranularity?: TimeslotGranularity) => {
+  // A campaign switch clears the previous campaign's orders and re-infers the
+  // granularity; a refresh keeps both. Requests can overlap (switching away
+  // from a slow campaign), so only the newest one may write state, and a
+  // failure clears the orders rather than leaving stale numbers under the
+  // current campaign's name.
+  const loadOrders = useCallback(
+    async (campaign: Campaign, { isSwitch }: { isSwitch: boolean }) => {
+      const requestId = ++latestRequest.current;
+      setIsLoadingMetrics(true);
+      setError(null);
+      if (isSwitch) setOrders(null);
       try {
-        setIsLoadingMetrics(true);
-        setError(null);
-        const orders = await getCampaignOrdersForMetrics(campaign.id);
-        const resolvedGranularity =
-          requestedGranularity ?? inferDefaultGranularity(orders);
-        setGranularity(resolvedGranularity);
-        setMetrics(computeCampaignMetrics(orders, resolvedGranularity));
+        const data = await getCampaignOrdersForMetrics(campaign.id);
+        if (requestId !== latestRequest.current) return;
+        if (isSwitch) setGranularity(inferDefaultGranularity(data));
+        setOrders(data);
       } catch (err) {
+        if (requestId !== latestRequest.current) return;
         console.error("Error loading metrics:", err);
+        setOrders(null);
         setError("Failed to load metrics for this campaign.");
       } finally {
-        setIsLoadingMetrics(false);
+        if (requestId === latestRequest.current) setIsLoadingMetrics(false);
       }
     },
     []
   );
 
-  // Reload metrics whenever the selected campaign changes; granularity
-  // resets to the campaign's inferred default on each campaign switch.
   useEffect(() => {
     if (!selectedCampaign) return;
-    setGranularity(null);
-    loadMetrics(selectedCampaign);
-  }, [selectedCampaign, loadMetrics]);
-
-  const handleGranularityChange = (next: TimeslotGranularity) => {
-    if (!selectedCampaign) return;
-    loadMetrics(selectedCampaign, next);
-  };
+    loadOrders(selectedCampaign, { isSwitch: true });
+  }, [selectedCampaign, loadOrders]);
 
   const handleRefresh = () => {
     if (!selectedCampaign) return;
-    loadMetrics(selectedCampaign, granularity ?? undefined);
+    loadOrders(selectedCampaign, { isSwitch: false });
   };
+
+  // Re-bucketing is a pure function of data already on the client, so the
+  // Hourly/Daily toggle never refetches.
+  const metrics = useMemo(
+    () => (orders ? computeCampaignMetrics(orders, granularity) : null),
+    [orders, granularity]
+  );
+
+  const activeCampaigns = campaigns.filter((c) => c.is_active);
+  const archivedCampaigns = campaigns.filter((c) => !c.is_active);
 
   const revenueByItemRows = useMemo(
     () =>
@@ -164,9 +171,11 @@ export default function MetricsPage() {
         <div className="flex items-center gap-3 sm:gap-4">
           <Link
             href="/"
+            aria-label="Back to home"
             className="rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
           >
             <svg
+              aria-hidden="true"
               xmlns="http://www.w3.org/2000/svg"
               className="h-5 w-5 sm:h-6 sm:w-6"
               fill="none"
@@ -195,9 +204,11 @@ export default function MetricsPage() {
             onClick={handleRefresh}
             disabled={!selectedCampaign || isLoadingMetrics}
             className="rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface disabled:opacity-50"
+            aria-label="Refresh metrics"
             title="Refresh metrics"
           >
             <svg
+              aria-hidden="true"
               xmlns="http://www.w3.org/2000/svg"
               className={`h-5 w-5 sm:h-6 sm:w-6 ${isLoadingMetrics ? "animate-spin" : ""}`}
               fill="none"
@@ -213,11 +224,39 @@ export default function MetricsPage() {
             </svg>
           </button>
           <ThemeToggle />
-          <CampaignSelector
-            campaigns={campaigns}
-            selectedCampaign={selectedCampaign}
-            onSelectCampaign={setSelectedCampaign}
-          />
+          {/* Not the terminal's CampaignSelector: there, picking an archived
+              campaign reactivates it. Reviewing a past campaign must not
+              change it, so a plain select lists every campaign read-only. */}
+          <select
+            aria-label="Campaign"
+            value={selectedCampaign?.id ?? ""}
+            onChange={(e) =>
+              setSelectedCampaign(
+                campaigns.find((c) => c.id === Number(e.target.value)) ?? null
+              )
+            }
+            disabled={campaigns.length === 0}
+            className="max-w-48 rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-sm text-on-surface sm:max-w-64"
+          >
+            {activeCampaigns.length > 0 && (
+              <optgroup label="Active">
+                {activeCampaigns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {archivedCampaigns.length > 0 && (
+              <optgroup label="Archived">
+                {archivedCampaigns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
         </div>
       </header>
 
@@ -236,10 +275,14 @@ export default function MetricsPage() {
           <p className="py-16 text-center text-on-surface-variant">
             No campaigns yet.
           </p>
-        ) : !selectedCampaign || isLoadingMetrics || !metrics ? (
-          <div className="flex justify-center py-16">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          </div>
+        ) : !metrics ? (
+          // On a failed load the error banner above is the whole story; the
+          // header refresh button retries.
+          !error && (
+            <div className="flex justify-center py-16">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            </div>
+          )
         ) : (
           <div className="space-y-6">
             {/* Overview */}
@@ -284,14 +327,12 @@ export default function MetricsPage() {
             </div>
 
             {/* Timeslot activity */}
-            {granularity && (
-              <TimeslotTable
-                timeslots={metrics.timeslots}
-                granularity={granularity}
-                onGranularityChange={handleGranularityChange}
-                busiestKey={metrics.busiestTimeslot?.key ?? null}
-              />
-            )}
+            <TimeslotTable
+              timeslots={metrics.timeslots}
+              granularity={granularity}
+              onGranularityChange={setGranularity}
+              busiestKey={metrics.busiestTimeslot?.key ?? null}
+            />
 
             {/* Breakdowns */}
             <div>

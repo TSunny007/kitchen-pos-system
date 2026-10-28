@@ -40,6 +40,11 @@ const slotDayFormatter = new Intl.DateTimeFormat(locale, {
 
 const slotHourFormatter = new Intl.DateTimeFormat(locale, { hour: "numeric" });
 
+const slotDayHourFormatter = new Intl.DateTimeFormat(locale, {
+  weekday: "short",
+  hour: "numeric",
+});
+
 /**
  * `Intl.DateTimeFormat.format` throws on an unparseable date, where the
  * `toLocaleTimeString` this replaced merely returned "Invalid Date". A bad
@@ -170,8 +175,15 @@ export function formatCount(n: number): string {
 
 /**
  * Label for a metrics timeslot bucket: "Sat, Aug 15" for a day, "2 PM" or
- * "14 Uhr" for an hour. Takes a Date the caller built, so it can't be invalid.
+ * "14 Uhr" for an hour, and "Sat 2 PM" for an hour when `withDate` is set
+ * (an hourly view spanning several days). Takes a Date the caller built, so
+ * it can't be invalid.
  */
-export function formatTimeslotLabel(start: Date, granularity: "hour" | "day"): string {
-  return (granularity === "day" ? slotDayFormatter : slotHourFormatter).format(start);
+export function formatTimeslotLabel(
+  start: Date,
+  granularity: "hour" | "day",
+  withDate = false,
+): string {
+  if (granularity === "day") return slotDayFormatter.format(start);
+  return (withDate ? slotDayHourFormatter : slotHourFormatter).format(start);
 }

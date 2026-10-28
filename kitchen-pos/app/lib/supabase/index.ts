@@ -71,6 +71,7 @@ export {
   inferDefaultGranularity,
 } from "./metrics";
 export type {
+  MetricsOrder,
   TimeslotGranularity,
   CampaignMetrics,
   RevenueByItemRow,
