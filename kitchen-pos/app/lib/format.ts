@@ -30,6 +30,16 @@ const clockFormatter = new Intl.DateTimeFormat(locale, {
 
 const dateFormatter = new Intl.DateTimeFormat(locale, { dateStyle: "short" });
 
+const countFormatter = new Intl.NumberFormat(locale);
+
+const slotDayFormatter = new Intl.DateTimeFormat(locale, {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+});
+
+const slotHourFormatter = new Intl.DateTimeFormat(locale, { hour: "numeric" });
+
 /**
  * `Intl.DateTimeFormat.format` throws on an unparseable date, where the
  * `toLocaleTimeString` this replaced merely returned "Invalid Date". A bad
@@ -151,4 +161,17 @@ export function formatDuration(seconds: number): string {
   if (minutes < 60) return `${minutes}m ${total % 60}s`;
   const hours = Math.floor(minutes / 60);
   return `${hours}h ${minutes % 60}m`;
+}
+
+/** A plain count with the locale's digit grouping, e.g. "1,234" or "1.234". */
+export function formatCount(n: number): string {
+  return countFormatter.format(n);
+}
+
+/**
+ * Label for a metrics timeslot bucket: "Sat, Aug 15" for a day, "2 PM" or
+ * "14 Uhr" for an hour. Takes a Date the caller built, so it can't be invalid.
+ */
+export function formatTimeslotLabel(start: Date, granularity: "hour" | "day"): string {
+  return (granularity === "day" ? slotDayFormatter : slotHourFormatter).format(start);
 }

@@ -13,7 +13,7 @@ import {
   TimeslotGranularity,
   CampaignMetrics,
 } from "../lib/supabase";
-import { formatCurrency, formatDuration } from "../lib/format";
+import { formatCount, formatCurrency, formatDuration } from "../lib/format";
 import ThemeToggle from "../components/ThemeToggle";
 import CampaignSelector from "../components/terminal/CampaignSelector";
 import StatCard from "../components/metrics/StatCard";
@@ -247,7 +247,7 @@ export default function MetricsPage() {
               <StatCard label="Total Revenue" value={formatCurrency(metrics.totalRevenue)} />
               <StatCard
                 label="Items Ordered"
-                value={metrics.itemsOrdered.toLocaleString()}
+                value={formatCount(metrics.itemsOrdered)}
                 sublabel={`${metrics.orderCount} order${metrics.orderCount !== 1 ? "s" : ""}`}
               />
               <StatCard

@@ -1,5 +1,6 @@
 import { supabase } from "./client";
 import type { OrderItemStatus, OrderStatus } from "@/app/types";
+import { formatTimeslotLabel } from "../format";
 
 export type TimeslotGranularity = "hour" | "day";
 
@@ -164,11 +165,7 @@ function bucketFor(
     const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     return {
       key: start.toISOString(),
-      label: start.toLocaleDateString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      }),
+      label: formatTimeslotLabel(start, granularity),
       start,
     };
   }
@@ -180,7 +177,7 @@ function bucketFor(
   );
   return {
     key: start.toISOString(),
-    label: start.toLocaleTimeString(undefined, { hour: "numeric" }),
+    label: formatTimeslotLabel(start, granularity),
     start,
   };
 }
