@@ -30,6 +30,21 @@ const clockFormatter = new Intl.DateTimeFormat(locale, {
 
 const dateFormatter = new Intl.DateTimeFormat(locale, { dateStyle: "short" });
 
+const countFormatter = new Intl.NumberFormat(locale);
+
+const slotDayFormatter = new Intl.DateTimeFormat(locale, {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+});
+
+const slotHourFormatter = new Intl.DateTimeFormat(locale, { hour: "numeric" });
+
+const slotDayHourFormatter = new Intl.DateTimeFormat(locale, {
+  weekday: "short",
+  hour: "numeric",
+});
+
 /**
  * `Intl.DateTimeFormat.format` throws on an unparseable date, where the
  * `toLocaleTimeString` this replaced merely returned "Invalid Date". A bad
@@ -139,3 +154,36 @@ export const currencyAdornment: {
     step: digits === 0 ? "1" : `0.${"0".repeat(digits - 1)}1`,
   };
 })();
+
+/**
+ * A duration in SECONDS, e.g. "45s", "5m 30s" or "2h 05m". See `formatElapsed`
+ * for the millisecond, minute-granularity variant.
+ */
+export function formatDuration(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  if (total < 60) return `${total}s`;
+  const minutes = Math.floor(total / 60);
+  if (minutes < 60) return `${minutes}m ${total % 60}s`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${minutes % 60}m`;
+}
+
+/** A plain count with the locale's digit grouping, e.g. "1,234" or "1.234". */
+export function formatCount(n: number): string {
+  return countFormatter.format(n);
+}
+
+/**
+ * Label for a metrics timeslot bucket: "Sat, Aug 15" for a day, "2 PM" or
+ * "14 Uhr" for an hour, and "Sat 2 PM" for an hour when `withDate` is set
+ * (an hourly view spanning several days). Takes a Date the caller built, so
+ * it can't be invalid.
+ */
+export function formatTimeslotLabel(
+  start: Date,
+  granularity: "hour" | "day",
+  withDate = false,
+): string {
+  if (granularity === "day") return slotDayFormatter.format(start);
+  return (withDate ? slotDayHourFormatter : slotHourFormatter).format(start);
+}
