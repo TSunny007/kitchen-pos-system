@@ -63,3 +63,7 @@ export {
   subscribeToKitchenOrders,
 } from "./orders";
 export type { CreateOrderInput, PaginatedOrdersResult, UpdateOrderItemInput } from "./orders";
+
+// Re-export payment functions
+export { verifySquarePayment, markOrderPaidInCash, voidOrder } from "./payments";
+export type { VerifyPaymentResult } from "./payments";

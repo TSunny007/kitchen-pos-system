@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Order, OrderItem } from "../../types";
+import { CALLBACK_PATH } from "../../lib/square";
 import { formatCurrency, formatPriceDelta, formatClockTime, formatTimeSince } from "../../lib/format";
 import { useElapsedMs } from "../../lib/useElapsed";
 import { lineTotal } from "../../lib/pricing";
@@ -56,6 +58,15 @@ export default function OrderCard({
             #{order.id}
             {timeSince && ` • ${timeSince}`}
           </p>
+          {order.payment_status === "awaiting" && order.status !== "cancelled" && (
+            <Link
+              href={`${CALLBACK_PATH}?order=${order.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="mt-1 inline-block rounded-full bg-error-container px-2 py-0.5 text-xs font-medium text-on-error-container"
+            >
+              Awaiting payment · Resolve
+            </Link>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {itemCount > 0 && (

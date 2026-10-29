@@ -69,6 +69,16 @@ function validCurrency(value: string, inLocale: string, fallback: string): strin
   }
 }
 
+/**
+ * A malformed ID wouldn't break the app, it would break every card sale at the
+ * till with an opaque error from the Square app. Falling back to "Square off"
+ * leaves cash working and says why in the console.
+ */
+function validSquareApplicationId(value: string): string {
+  if (!value || /^(sandbox-)?sq0id[a-z]-[A-Za-z0-9_-]+$/.test(value)) return value;
+  return reject("NEXT_PUBLIC_SQUARE_APPLICATION_ID", value, "");
+}
+
 // --- Tier 1: environment ---------------------------------------------------
 
 /**
@@ -83,6 +93,17 @@ const locale = validLocale(env(process.env.NEXT_PUBLIC_LOCALE, "en-US"), "en-US"
 /** ISO 4217 code, e.g. USD, EUR, GBP, JPY. */
 const currency = validCurrency(env(process.env.NEXT_PUBLIC_CURRENCY, "USD"), locale, "USD");
 
+/**
+ * Square application ID (Developer Dashboard → your app → Credentials). Setting
+ * it is what turns on card payments through the Square Point of Sale app; unset,
+ * the terminal places orders exactly as it always has. It's public by design —
+ * the POS app needs it in the hand-off URL — and the secret half lives only in
+ * the Edge Function (see README "Card payments with Square").
+ */
+const squareApplicationId = validSquareApplicationId(
+  env(process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID, ""),
+);
+
 // --- Tier 2: constants a fork edits ----------------------------------------
 
 /** `title` names the station on the landing page; `heading` tops its own screen. */
@@ -94,6 +115,7 @@ export const tenant = {
   orgName,
   locale,
   currency,
+  squareApplicationId,
 
   /** Browser tab title. Falls back to a generic name when no org is configured. */
   appName: orgName ? `${orgName} POS` : "Kitchen POS",

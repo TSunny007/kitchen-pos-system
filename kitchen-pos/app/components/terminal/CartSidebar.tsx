@@ -17,6 +17,11 @@ interface CartSidebarProps {
   onRemoveItem: (cartItemId: string) => void;
   onClearCart: () => void;
   onPlaceOrder: () => void;
+  /**
+   * Present only when Square card payments are on. The footer then offers
+   * "Charge card" and "Paid in cash" (onPlaceOrder) instead of "Place Order".
+   */
+  onChargeCard?: () => void;
   isSubmitting?: boolean;
   onEditCartItem?: (cartItem: CartItem) => void;
   total: number;
@@ -40,6 +45,7 @@ export default function CartSidebar({
   onRemoveItem,
   onClearCart,
   onPlaceOrder,
+  onChargeCard,
   isSubmitting = false,
   onEditCartItem,
   total,
@@ -55,6 +61,12 @@ export default function CartSidebar({
 }: CartSidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab>("cart");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const cannotSubmit = cartItems.length === 0 || !customerName.trim() || isSubmitting;
+  const submit = (action: () => void) => {
+    action();
+    onClose?.();
+  };
 
   return (
     <>
@@ -258,16 +270,24 @@ export default function CartSidebar({
                   {formatCurrency(total)}
                 </span>
               </div>
-              <button
-                onClick={() => {
-                  onPlaceOrder();
-                  onClose?.();
-                }}
-                disabled={cartItems.length === 0 || !customerName.trim() || isSubmitting}
-                className="w-full rounded-full bg-primary py-4 text-base font-medium text-on-primary transition-all hover:shadow-[var(--md-elevation-1)] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isSubmitting ? "Placing Order..." : "Place Order"}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => submit(onChargeCard ?? onPlaceOrder)}
+                  disabled={cannotSubmit}
+                  className="flex-1 rounded-full bg-primary py-4 text-base font-medium text-on-primary transition-all hover:shadow-[var(--md-elevation-1)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isSubmitting ? "Placing Order..." : onChargeCard ? "Charge card" : "Place Order"}
+                </button>
+                {onChargeCard && (
+                  <button
+                    onClick={() => submit(onPlaceOrder)}
+                    disabled={cannotSubmit}
+                    className="flex-1 rounded-full border border-outline py-4 text-base font-medium text-on-surface transition-all hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Paid in cash
+                  </button>
+                )}
+              </div>
             </div>
           </>
         )}

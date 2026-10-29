@@ -53,6 +53,12 @@ export interface ItemModifier {
 
 export type OrderStatus = 'new' | 'in_progress' | 'completed' | 'cancelled';
 export type OrderItemStatus = 'new' | 'in_progress' | 'done' | 'cancelled';
+/**
+ * How the order was paid, as far as the app knows. 'untracked' is every order
+ * placed while Square is off; 'awaiting' orders are hidden from the kitchen
+ * until Square confirms them ('paid') or the cashier takes cash ('cash').
+ */
+export type PaymentStatus = 'untracked' | 'awaiting' | 'paid' | 'cash';
 
 export interface Order {
   id: number;
@@ -61,6 +67,9 @@ export interface Order {
   status: OrderStatus;
   subtotal: number;
   notes: string | null;
+  payment_status: PaymentStatus;
+  /** Square's transaction id once the POS app has reported one. */
+  payment_reference: string | null;
   created_at: string;
   updated_at: string;
   order_items?: OrderItem[];

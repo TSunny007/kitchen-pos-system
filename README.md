@@ -86,7 +86,8 @@ app runs on a two-line `.env.local`. The full annotated list lives in
 | `NEXT_PUBLIC_ORG_NAME` | `Kitchen` | Your name, woven into titles: "Bluebird Cafe POS", "Bluebird Cafe Terminal". |
 | `NEXT_PUBLIC_LOCALE` | `en-US` | BCP 47 tag driving prices, dates, and 12- vs 24-hour clocks. |
 | `NEXT_PUBLIC_CURRENCY` | `USD` | ISO 4217 code. An unrecognised code warns and falls back rather than breaking the app. |
-| `SUPABASE_SERVICE_ROLE_KEY` | — | Optional, server-side only. **No application code reads this** — it's for the Supabase CLI and your own migration/backfill scripts, which need to bypass RLS. |
+| `NEXT_PUBLIC_SQUARE_APPLICATION_ID` | — | Optional. Turns on card payments through the Square Point of Sale app — see [Card payments with Square](#card-payments-with-square). Unset, there are no card payments and orders work exactly as before. |
+| `SUPABASE_SERVICE_ROLE_KEY` | — | Optional, server-side only. **No application code reads this** — it's for the Supabase CLI and your own migration/backfill scripts, which need to bypass RLS. (The optional Square Edge Function uses the copy Supabase injects into it, not yours.) |
 
 ### Wording and labels
 
@@ -118,6 +119,53 @@ Typography is a local webfont — see
 [`kitchen-pos/public/fonts/README.md`](kitchen-pos/public/fonts/README.md) for
 swapping it, including the licensing catch of committing a font to a public
 fork.
+
+### Card payments with Square
+
+Optional, and off unless you configure it. With it on, the terminal's
+**Charge card** button saves the order as *awaiting payment* — the kitchen
+doesn't see it yet — and opens the
+[Square Point of Sale](https://developer.squareup.com/docs/pos-api/what-it-does)
+app on the same phone with the amount filled in. The customer taps their card
+and adds a tip there; Square hands back to the terminal, and the
+`square-verify-payment` Edge Function confirms the payment with Square's API
+and records the base amount, tip, and total in the `payments` table. **Paid in
+cash** sits next to it and skips Square entirely.
+
+What it costs to set up, so you can decide whether it's worth it:
+
+- Every phone taking cards needs the Square Point of Sale app installed and
+  signed in, and a Square Reader (or Tap to Pay).
+- It's the app's only server-side code, so it's one more thing to deploy.
+- Square offers **no sandbox** for this hand-off. The final test is a real
+  small charge that you refund.
+
+Setup:
+
+1. In the [Square Developer Dashboard](https://developer.squareup.com/apps),
+   create an application. From **Credentials** (production) copy the
+   **Application ID** and the **Access token**.
+2. Under **Point of Sale API → Web**, register your callback URL:
+   `https://<your-domain>/terminal/square-callback`. It must match exactly,
+   so register each origin you take payments from (your Vercel domain, and
+   `http://<lan-ip>:3000` if you test from a phone against `npm run dev`).
+3. Deploy the function and give it the secret half:
+
+   ```sh
+   supabase secrets set SQUARE_ACCESS_TOKEN=<access token>
+   supabase functions deploy square-verify-payment
+   ```
+
+   (`SQUARE_ENVIRONMENT=sandbox` points the function at Square's sandbox API,
+   but the Point of Sale app itself only talks to production.)
+4. Set `NEXT_PUBLIC_SQUARE_APPLICATION_ID` in Vercel and redeploy.
+5. Check that `NEXT_PUBLIC_CURRENCY` matches your Square account's currency —
+   Square rejects anything else.
+
+If a payment can't be confirmed (the phone died mid-sale, Square was offline),
+the order shows **Awaiting payment · Resolve** in the terminal's recent orders,
+with **Check again**, **Charge card again**, **Paid in cash**, and **Void
+order**. Refunds and tax aren't handled by the app — do refunds in Square.
 
 ---
 
@@ -186,12 +234,14 @@ kitchen-pos/            Next.js app (this is the Vercel project root)
   app/config/tenant.ts    branding/locale env reads + per-fork constants
   app/lib/format.ts       currency/date formatting, locale-driven
   app/lib/supabase/       data access, one module per table group
-  app/terminal/           order-taking station
+  app/terminal/           order-taking station (+ square-callback/)
+  app/lib/square.ts       Square Point of Sale hand-off and callback parsing
   app/kitchen/            kitchen display station
   app/globals.css         design tokens; BRAND block at the top
 supabase/
   migrations/             ordered schema history
   seed.sql                starter menu for a fresh project
+  functions/              Edge Functions (square-verify-payment)
 Makefile                  dev + migration targets for sandbox/prod
 ```
 
@@ -200,8 +250,10 @@ documented in [`kitchen-pos/README.md`](kitchen-pos/README.md).
 
 ### Continuous deployment
 
-`.github/workflows/update_db.yaml` pushes migrations on every push to `main`.
-It's project-agnostic — to use it in your fork, set three repository secrets
+`.github/workflows/update_db.yaml` pushes migrations and deploys the Edge
+Functions on every push to `main`. (Deploying `square-verify-payment` is
+harmless without Square configured — it answers "not configured" and nothing
+calls it.) It's project-agnostic — to use it in your fork, set three repository secrets
 under Settings → Secrets and variables → Actions:
 
 | Secret | Where to find it |

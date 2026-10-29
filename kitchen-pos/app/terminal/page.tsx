@@ -48,6 +48,7 @@ import {
 import AddItemModal from "../components/terminal/AddItemModal";
 import { formatCurrency } from "../lib/format";
 import { cartTotal } from "../lib/pricing";
+import { buildChargeUrl, squareEnabled } from "../lib/square";
 
 export default function TerminalPage() {
   const { user, isLoading: authLoading } = useRequireAuth();
@@ -271,7 +272,13 @@ export default function TerminalPage() {
 
   const total = useMemo(() => cartTotal(cartItems), [cartItems]);
 
-  const handlePlaceOrder = async () => {
+  /**
+   * With Square on, the cashier picks how the customer pays: "card" saves the
+   * order as awaiting payment (hidden from the kitchen) and hands off to the
+   * Square app, "cash" records it as paid. With Square off there's one button
+   * and the order is placed exactly as before.
+   */
+  const handlePlaceOrder = async (method?: "card" | "cash") => {
     if (isPlacingOrder) return;
 
     if (!customerName.trim()) {
@@ -289,7 +296,22 @@ export default function TerminalPage() {
         campaign_id: selectedCampaign?.id ?? null,
         customer_name: customerName.trim(),
         items: cartItems,
+        payment_status: method === "card" ? "awaiting" : method,
       });
+
+      if (method === "card") {
+        // The order is saved first, so iOS reloading this tab while the
+        // Square app is open can't lose the sale; the callback page picks it
+        // up by id. The stock refresh arrives over realtime on the way back.
+        handleClearCart();
+        window.location.href = buildChargeUrl({
+          orderId: order.id,
+          amount: order.subtotal,
+          origin: window.location.origin,
+          userAgent: navigator.userAgent,
+        });
+        return;
+      }
 
       // Optimistically decrement stock so the grid updates before the realtime event arrives
       setItems((prev) => {
@@ -819,7 +841,8 @@ export default function TerminalPage() {
         onUpdateQuantity={handleUpdateCartItem}
         onRemoveItem={handleRemoveFromCart}
         onClearCart={handleClearCart}
-        onPlaceOrder={handlePlaceOrder}
+        onPlaceOrder={() => handlePlaceOrder(squareEnabled ? "cash" : undefined)}
+        onChargeCard={squareEnabled ? () => handlePlaceOrder("card") : undefined}
         isSubmitting={isPlacingOrder}
         onEditCartItem={handleEditCartItem}
         total={total}

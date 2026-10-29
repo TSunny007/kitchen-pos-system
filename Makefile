@@ -6,7 +6,7 @@ ENV_PROD := $(APP_DIR)/.env.prod
 .PHONY: help dev-sandbox dev-prod build-sandbox build-prod start-sandbox start-prod \
         guard-sandbox guard-prod \
         link-sandbox link-prod migration-new migrate-status-sandbox migrate-status-prod \
-        migrate-sandbox migrate-prod
+        migrate-sandbox migrate-prod functions-deploy-sandbox functions-deploy-prod
 
 help:
 	@echo "App targets:"
@@ -23,6 +23,10 @@ help:
 	@echo "  make migrate-status-prod    Show applied/pending migrations on production (read-only)"
 	@echo "  make migrate-sandbox        Dry-run then, on confirmation, push migrations to sandbox"
 	@echo "  make migrate-prod           Dry-run then, on confirmation, push migrations to production"
+	@echo ""
+	@echo "Edge Function targets (only needed for Square card payments):"
+	@echo "  make functions-deploy-sandbox  Deploy supabase/functions to sandbox"
+	@echo "  make functions-deploy-prod     Deploy supabase/functions to production"
 	@echo ""
 	@echo "First-time setup: copy $(APP_DIR)/.env.sandbox.example and .env.prod.example"
 	@echo "to .env.sandbox / .env.prod and fill in each project's URL and key."
@@ -129,6 +133,23 @@ migrate-prod: link-prod
 	read ans; \
 	if [ "$$ans" = "yes" ]; then \
 		supabase db push --linked; \
+	else \
+		echo "Aborted."; exit 1; \
+	fi
+
+# --- Edge Functions ----------------------------------------------------
+#
+# Only square-verify-payment so far. Secrets are set separately, once per
+# project: supabase secrets set SQUARE_ACCESS_TOKEN=... --project-ref <ref>
+
+functions-deploy-sandbox: link-sandbox
+	@supabase functions deploy
+
+functions-deploy-prod: link-prod
+	@printf "Deploy Edge Functions to PRODUCTION? Type 'yes' to continue: "; \
+	read ans; \
+	if [ "$$ans" = "yes" ]; then \
+		supabase functions deploy; \
 	else \
 		echo "Aborted."; exit 1; \
 	fi

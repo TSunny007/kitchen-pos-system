@@ -5,9 +5,10 @@ import type {
   CartItem,
   OrderStatus,
   OrderItemStatus,
+  PaymentStatus,
 } from "@/app/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { aggregateItemStatus } from "@/app/lib/orderStatus";
+import { aggregateItemStatus, KITCHEN_ORDER_STATUSES } from "@/app/lib/orderStatus";
 import { cartTotal } from "@/app/lib/pricing";
 
 // Shared PostgREST select shapes - these were repeated verbatim across the
@@ -35,6 +36,8 @@ export interface CreateOrderInput {
   customer_name: string;
   notes?: string;
   items: CartItem[];
+  /** Omitted while Square is off, leaving the column's 'untracked' default. */
+  payment_status?: PaymentStatus;
 }
 
 /**
@@ -43,7 +46,7 @@ export interface CreateOrderInput {
  * in the client SDK, so we do our best to maintain consistency
  */
 export async function createOrder(input: CreateOrderInput): Promise<Order> {
-  const { campaign_id, customer_name, notes, items } = input;
+  const { campaign_id, customer_name, notes, items, payment_status } = input;
 
   // Shares `cartTotal` with the cart UI, so the price we quote and the price
   // we store are the same expression rather than two that agree today.
@@ -58,6 +61,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
       notes: notes || null,
       subtotal,
       status: "new" as OrderStatus,
+      payment_status,
     })
     .select()
     .single();
@@ -666,18 +670,16 @@ export function subscribeToOrders(
 // ============ Kitchen Display Functions ============
 
 /**
- * Fetch active orders for kitchen display (new, in_progress, completed)
- * 'completed' is included because it's the aggregate item-level "Ready"
- * state (see updateOrderStatusFromItems) - excluding it would make orders
- * disappear from the kitchen display the moment they're fully done.
- * These are orders that kitchen staff need to see and work on.
+ * Fetch the orders kitchen staff need to see and work on. Mirrors
+ * `isKitchenVisible`, which the realtime handler applies to single orders.
  */
 export async function getKitchenOrders(campaignId: number): Promise<Order[]> {
   const { data, error } = await supabase
     .from("orders")
     .select(ORDER_WITH_ITEMS)
     .eq("campaign_id", campaignId)
-    .in("status", ["new", "in_progress", "completed"])
+    .in("status", KITCHEN_ORDER_STATUSES)
+    .neq("payment_status", "awaiting")
     .order("created_at", { ascending: true }) // Oldest first for kitchen
     .order("id", { referencedTable: "order_items", ascending: true });
 

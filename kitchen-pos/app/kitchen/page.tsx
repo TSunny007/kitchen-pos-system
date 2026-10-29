@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { Campaign, Category, Order, OrderItemStatus } from "../types";
-import { aggregateItemStatus, ITEM_STATUS_CONFIG } from "../lib/orderStatus";
+import { aggregateItemStatus, isKitchenVisible, ITEM_STATUS_CONFIG } from "../lib/orderStatus";
 import {
   getCampaigns,
   firstActiveCampaign,
@@ -132,14 +132,11 @@ export default function KitchenPage() {
       selectedCampaign.id,
       (eventType, order) => {
         setOrders((prev) => {
-          // Check if order should be visible in kitchen (new, in_progress, completed -
-          // 'completed' is the "Ready" state; excluding it would make orders
-          // disappear from the kitchen display the moment they're fully done)
-          const isKitchenVisible = ["new", "in_progress", "completed"].includes(order.status);
+          const visible = isKitchenVisible(order);
 
           if (eventType === "INSERT") {
             // Add new order if it's kitchen-visible
-            if (isKitchenVisible && !prev.find((o) => o.id === order.id)) {
+            if (visible && !prev.find((o) => o.id === order.id)) {
               // Insert in correct position (oldest first)
               const newOrders = [...prev, order].sort(
                 (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -148,7 +145,7 @@ export default function KitchenPage() {
             }
             return prev;
           } else if (eventType === "UPDATE") {
-            if (isKitchenVisible) {
+            if (visible) {
               // Update or add if now visible
               const exists = prev.find((o) => o.id === order.id);
               if (exists) {

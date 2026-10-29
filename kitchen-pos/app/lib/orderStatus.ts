@@ -1,4 +1,21 @@
-import type { OrderItemStatus } from "@/app/types";
+import type { Order, OrderItemStatus, OrderStatus } from "@/app/types";
+
+/**
+ * Order statuses the kitchen works on. 'completed' is included because it's
+ * the aggregate item-level "Ready" state (see updateOrderStatusFromItems) -
+ * excluding it would make orders disappear from the kitchen display the moment
+ * they're fully done.
+ */
+export const KITCHEN_ORDER_STATUSES: OrderStatus[] = ["new", "in_progress", "completed"];
+
+/**
+ * Whether the kitchen should show an order. Shared by the initial query and
+ * the realtime handler so the two can't disagree. An order still waiting on a
+ * card payment stays off the screen: nobody cooks before the card clears.
+ */
+export function isKitchenVisible(order: Pick<Order, "status" | "payment_status">): boolean {
+  return KITCHEN_ORDER_STATUSES.includes(order.status) && order.payment_status !== "awaiting";
+}
 
 /** The three kitchen-facing states an order can aggregate to. */
 export type AggregateStatus = Extract<
