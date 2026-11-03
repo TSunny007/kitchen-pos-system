@@ -46,6 +46,26 @@ function KitchenIcon() {
   );
 }
 
+// Metrics icon (bar chart)
+function MetricsIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-8 w-8"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.5}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 3v18h18M8 17V9m5 8V5m5 12v-5"
+      />
+    </svg>
+  );
+}
+
 export default function Home() {
   const { user, isLoading, signOut } = useAuth();
 
@@ -103,7 +123,7 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="grid w-full max-w-2xl gap-6 sm:grid-cols-2">
+      <div className="grid w-full max-w-3xl gap-6 sm:grid-cols-3">
         <StationCard
           title={tenant.stations.terminal.title}
           description={tenant.stations.terminal.description}
@@ -115,6 +135,12 @@ export default function Home() {
           description={tenant.stations.kitchen.description}
           href="/kitchen"
           icon={<KitchenIcon />}
+        />
+        <StationCard
+          title="Metrics"
+          description="Review revenue and prep time after an event"
+          href="/metrics"
+          icon={<MetricsIcon />}
         />
       </div>
     </div>
