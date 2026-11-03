@@ -33,8 +33,11 @@ Dashboard → Project Settings you'll want the **project URL**, the
 brew install supabase/tap/supabase   # or see the CLI docs for other platforms
 supabase login
 supabase link --project-ref <your-project-ref>
-supabase db push
+supabase db push --remote
 ```
+
+Since CLI v3, `db push` applies to a local Docker database unless you pass
+`--remote`, so don't leave it off.
 
 (The Supabase CLI refuses a global `npm install -g`; use Homebrew, one of the
 [other install methods](https://supabase.com/docs/guides/local-development/cli/getting-started),
