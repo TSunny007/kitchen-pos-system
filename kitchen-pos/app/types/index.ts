@@ -99,6 +99,26 @@ export interface CampaignItem {
   campaign?: Campaign;
 }
 
+/** A line on the balance sheet: money the order data can't account for. */
+export interface LedgerEntry {
+  id: number;
+  campaign_id: number | null; // null = not tied to a campaign
+  label: string;
+  amount: number; // signed: negative = expense, positive = addition (tips, etc.)
+  created_at: string;
+}
+
+/**
+ * One row of the `campaign_balance` view. `campaign_id: null` is the row for
+ * money that belongs to no campaign; it exists only when there is some.
+ */
+export interface CampaignBalance {
+  campaign_id: number | null;
+  revenue: number; // completed orders only
+  expenses: number; // zero or negative
+  additions: number; // zero or positive
+}
+
 // Cart types for the terminal UI
 export interface CartItem {
   id: string; // Temporary client-side ID
