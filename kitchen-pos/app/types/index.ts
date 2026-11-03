@@ -104,6 +104,7 @@ export interface LedgerEntry {
   id: number;
   campaign_id: number | null; // null = not tied to a campaign
   label: string;
+  person: string | null; // who paid / whose tip it was; null = nobody in particular
   amount: number; // signed: negative = expense, positive = addition (tips, etc.)
   created_at: string;
 }

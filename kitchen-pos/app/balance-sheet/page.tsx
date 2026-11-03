@@ -8,6 +8,7 @@ import {
   firstActiveCampaign,
   getCampaignBalances,
   getLedgerEntries,
+  getLedgerPeople,
   createLedgerEntry,
   updateLedgerEntry,
   deleteLedgerEntry,
@@ -44,6 +45,7 @@ export default function BalanceSheetPage() {
   const [data, setData] = useState<{
     campaigns: Campaign[];
     balances: CampaignBalance[];
+    people: string[];
   } | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
 
@@ -62,11 +64,14 @@ export default function BalanceSheetPage() {
   // operator would retry and enter it twice.
   const refresh = useCallback(async () => {
     try {
-      const [campaigns, balances] = await Promise.all([
+      const [campaigns, balances, people] = await Promise.all([
         getCampaigns({ includeArchived: true }),
         getCampaignBalances(),
+        // Only suggestions for the form, so not worth failing the page over;
+        // `getLedgerPeople` has already logged the reason.
+        getLedgerPeople().catch(() => []),
       ]);
-      setData({ campaigns, balances });
+      setData({ campaigns, balances, people });
       setLoadFailed(false);
     } catch (err) {
       console.error("Error loading balance sheet:", err);
@@ -84,6 +89,44 @@ export default function BalanceSheetPage() {
     }
   }, [user, refresh]);
 
+  const orgFigures = useMemo(() => sumBalances(data?.balances ?? []), [data]);
+
+  const rows = useMemo(() => {
+    if (!data) return [];
+    const byCampaign = new Map(data.balances.map((b) => [b.campaign_id, b]));
+
+    const list = data.campaigns.map((campaign) => ({
+      key: campaign.id as RowKey,
+      name: campaign.name,
+      detail: [
+        campaign.is_active ? null : "Archived",
+        campaign.starts_at ? formatDate(campaign.starts_at) : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      // The view has a row for every campaign, but the two reads in `refresh`
+      // aren't one snapshot: a campaign created between them has no row yet.
+      figures: byCampaign.get(campaign.id) ?? NO_FIGURES,
+    }));
+
+    // Only present when some order or entry belongs to no campaign.
+    const untied = byCampaign.get(null);
+    if (untied) {
+      list.push({
+        key: "unassigned",
+        name: "Not tied to a campaign",
+        detail: "",
+        figures: untied,
+      });
+    }
+    return list;
+  }, [data]);
+
+  // Derived rather than stored. The "not tied" row disappears once its last
+  // entry is deleted or moved; an id still pointing at it would keep steering
+  // the header's Add button at a row that is no longer on screen.
+  const openKey = rows.some((row) => row.key === expanded) ? expanded : null;
+
   // Rows are opened and closed faster than the network answers, so only the
   // latest request may write state. Same non-throwing contract as `refresh`.
   const entriesRequest = useRef(0);
@@ -100,32 +143,33 @@ export default function BalanceSheetPage() {
     }
   }, []);
 
-  const openRow = (key: RowKey) => {
+  // Switches rows without fetching; whoever calls this issues the one fetch.
+  const showRow = (key: RowKey) => {
     setExpanded(key);
     setEntries(null);
     setEntriesFailed(false);
-    loadEntries(campaignIdOf(key));
   };
 
   const handleToggle = (key: RowKey) => {
-    if (expanded === key) {
+    if (openKey === key) {
       entriesRequest.current++; // drop any response still in flight
       setExpanded(null);
     } else {
-      openRow(key);
+      showRow(key);
+      loadEntries(campaignIdOf(key));
     }
   };
 
   const handleRefresh = () => {
     refresh();
-    if (expanded !== null) loadEntries(campaignIdOf(expanded));
+    if (openKey !== null) loadEntries(campaignIdOf(openKey));
   };
 
   // After any write: re-read the totals, and open the row the entry landed on
   // so the person sees where it went — which, when they edit an entry onto
   // another campaign, is not the row they started from.
   const afterChange = async (campaignId: number | null) => {
-    if (expanded !== keyOf(campaignId)) openRow(keyOf(campaignId));
+    if (openKey !== keyOf(campaignId)) showRow(keyOf(campaignId));
     await Promise.all([refresh(), loadEntries(campaignId)]);
   };
 
@@ -144,37 +188,6 @@ export default function BalanceSheetPage() {
     await deleteLedgerEntry(entry.id);
     await afterChange(entry.campaign_id);
   };
-
-  const orgFigures = useMemo(() => sumBalances(data?.balances ?? []), [data]);
-
-  const rows = useMemo(() => {
-    if (!data) return [];
-    const byCampaign = new Map(data.balances.map((b) => [b.campaign_id, b]));
-
-    const list = data.campaigns.map((campaign) => ({
-      key: campaign.id as RowKey,
-      name: campaign.name,
-      detail: [
-        campaign.is_active ? null : "Archived",
-        campaign.starts_at ? formatDate(campaign.starts_at) : null,
-      ]
-        .filter(Boolean)
-        .join(" · "),
-      figures: byCampaign.get(campaign.id) ?? NO_FIGURES,
-    }));
-
-    // Only present when some order or entry belongs to no campaign.
-    const untied = byCampaign.get(null);
-    if (untied) {
-      list.push({
-        key: "unassigned",
-        name: "Not tied to a campaign",
-        detail: "",
-        figures: untied,
-      });
-    }
-    return list;
-  }, [data]);
 
   if (authLoading || !user || (data === null && !loadFailed)) {
     return <LoadingScreen message="Loading balance sheet..." />;
@@ -205,8 +218,8 @@ export default function BalanceSheetPage() {
               onClick={() =>
                 setModal({
                   campaignId:
-                    expanded !== null
-                      ? campaignIdOf(expanded)
+                    openKey !== null
+                      ? campaignIdOf(openKey)
                       : (firstActiveCampaign(data.campaigns)?.id ?? null),
                 })
               }
@@ -287,7 +300,7 @@ export default function BalanceSheetPage() {
                       name={row.name}
                       detail={row.detail}
                       figures={row.figures}
-                      isExpanded={expanded === row.key}
+                      isExpanded={openKey === row.key}
                       onToggle={() => handleToggle(row.key)}
                       entries={entries}
                       entriesFailed={entriesFailed}
@@ -315,6 +328,7 @@ export default function BalanceSheetPage() {
           campaigns={data.campaigns}
           entry={modal.entry}
           defaultCampaignId={modal.campaignId}
+          people={data.people}
           onClose={() => setModal(null)}
           onSave={handleSave}
           onDelete={modal.entry ? handleDelete : undefined}

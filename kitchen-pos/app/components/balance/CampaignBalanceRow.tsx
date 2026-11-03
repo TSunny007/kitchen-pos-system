@@ -141,8 +141,10 @@ export default function CampaignBalanceRow({
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-on-surface">{entry.label}</span>
-                      <span className="block text-xs text-on-surface-variant">
-                        {formatDate(entry.created_at)}
+                      <span className="block truncate text-xs text-on-surface-variant">
+                        {[formatDate(entry.created_at), entry.person]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </span>
                     </span>
                     <span className={`shrink-0 font-medium ${amountClass(entry.amount)}`}>

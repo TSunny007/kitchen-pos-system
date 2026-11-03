@@ -3,7 +3,14 @@
 import { useId, useState } from "react";
 import { Campaign, LedgerEntry } from "../../types";
 import type { LedgerEntryInput } from "../../lib/supabase";
-import { entryKind, signedAmount, type EntryKind } from "../../lib/ledger";
+import {
+  MAX_ENTRY_AMOUNT,
+  entryKind,
+  resolvePerson,
+  roundToCents,
+  signedAmount,
+  type EntryKind,
+} from "../../lib/ledger";
 import Modal from "../Modal";
 import PriceInput from "../terminal/PriceInput";
 
@@ -14,6 +21,8 @@ interface LedgerEntryModalProps {
   entry?: LedgerEntry;
   /** Which campaign a new entry starts on. Ignored when editing. */
   defaultCampaignId: number | null;
+  /** Names already used on other entries, offered as suggestions. */
+  people: string[];
   onClose: () => void;
   onSave: (input: LedgerEntryInput) => Promise<void>;
   /** Only passed when editing. */
@@ -32,15 +41,19 @@ export default function LedgerEntryModal({
   campaigns,
   entry,
   defaultCampaignId,
+  people,
   onClose,
   onSave,
   onDelete,
 }: LedgerEntryModalProps) {
   const labelId = useId();
+  const personId = useId();
+  const peopleListId = useId();
   const campaignId = useId();
 
   const [kind, setKind] = useState<EntryKind>(entry ? entryKind(entry.amount) : "expense");
   const [label, setLabel] = useState(entry?.label ?? "");
+  const [person, setPerson] = useState(entry?.person ?? "");
   const [amount, setAmount] = useState(entry ? String(Math.abs(entry.amount)) : "");
   // "" is "not tied to a campaign": a <select> value is always a string, and
   // an empty one can't collide with a real id.
@@ -62,9 +75,16 @@ export default function LedgerEntryModal({
       return;
     }
 
-    const magnitude = parseFloat(amount);
-    if (!Number.isFinite(magnitude) || magnitude <= 0) {
+    // Rounded first, because the column stores hundredths: "0.004" is positive
+    // but would be stored as 0.00 and rejected by the database with a message
+    // nobody can act on.
+    const magnitude = roundToCents(parseFloat(amount));
+    if (!(magnitude > 0)) {
       setError("Please enter an amount greater than zero");
+      return;
+    }
+    if (magnitude > MAX_ENTRY_AMOUNT) {
+      setError("That amount is too large");
       return;
     }
 
@@ -73,6 +93,7 @@ export default function LedgerEntryModal({
       await onSave({
         campaign_id: campaign === "" ? null : Number(campaign),
         label: label.trim(),
+        person: resolvePerson(person, people),
         amount: signedAmount(kind, magnitude),
       });
       onClose(); // unmounts, discarding form state
@@ -150,6 +171,29 @@ export default function LedgerEntryModal({
               className="bg-surface"
               aria-label="Amount"
             />
+          </div>
+
+          <div>
+            <label htmlFor={personId} className="mb-1.5 block text-sm font-medium text-on-surface">
+              Person
+            </label>
+            {/* A native datalist: type a new name or pick one already used. */}
+            <input
+              id={personId}
+              type="text"
+              list={peopleListId}
+              value={person}
+              onChange={(e) => setPerson(e.target.value)}
+              placeholder="Optional"
+              autoComplete="off"
+              className={FIELD}
+              disabled={isSubmitting}
+            />
+            <datalist id={peopleListId}>
+              {people.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
           </div>
 
           <div>

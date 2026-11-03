@@ -23,6 +23,7 @@ export {
 export {
   getCampaignBalances,
   getLedgerEntries,
+  getLedgerPeople,
   createLedgerEntry,
   updateLedgerEntry,
   deleteLedgerEntry,

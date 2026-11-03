@@ -17,10 +17,15 @@ create table public.ledger_entries (
   -- the same way orders.campaign_id behaves.
   campaign_id       bigint references public.campaigns(id) on delete set null,
   label             text not null,              -- 'Costco run', 'Tips'
+  -- Who paid, or whose tip it was. Free text because there is no people table -
+  -- one deployment is one small team - and the app suggests the names already
+  -- used so the same person isn't entered three ways. NULL = nobody in particular.
+  person            text,
   amount            numeric(10,2) not null,
   created_at        timestamptz not null default now(),
   constraint ledger_entries_amount_nonzero check (amount <> 0),
-  constraint ledger_entries_label_not_blank check (btrim(label) <> '')
+  constraint ledger_entries_label_not_blank check (btrim(label) <> ''),
+  constraint ledger_entries_person_not_blank check (person is null or btrim(person) <> '')
 );
 
 create index ledger_entries_campaign_id_idx on public.ledger_entries (campaign_id);
@@ -59,6 +64,13 @@ create policy "Allow authenticated users to delete ledger_entries"
 -- recalculates the subtotal when an item is cancelled, and
 -- recalculateOrderSubtotal() counts cancelled items; a stored figure would
 -- overstate revenue for any order that had one.
+--
+-- Known trade-off: order_items stores no price, so each line is priced at
+-- items.base_price as it is *now*, and editing a base price later would restate
+-- past revenue. Nothing in the app can do that today (updateItem has no caller;
+-- items are only ever created or deactivated), and on the data this shipped
+-- against the two definitions agree to the cent. If a price editor is ever
+-- added, snapshot the price onto order_items first.
 --
 -- This is a view, not client-side arithmetic, because PostgREST caps a response
 -- at 1000 rows (max_rows in config.toml) and truncates silently: summing every

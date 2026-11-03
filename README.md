@@ -134,7 +134,8 @@ Revenue comes from your orders; everything else is a line item you enter.
 - **Expenses and additions** are entries you add by hand — groceries and
   supplies on one side, tips and donations on the other. They're stored as one
   signed amount (negative is an expense), so **net = revenue + expenses +
-  additions**.
+  additions**. Each can name a **person** — who paid, or whose tip it was —
+  typed freely or picked from the names already used.
 - **Campaign is optional on an entry.** One tied to a campaign counts toward
   that campaign's net; one left untied (a bulk grocery run covering several
   events) counts toward the organisation total only. There is no org table to
