@@ -115,7 +115,7 @@ export interface LedgerEntry {
  */
 export interface CampaignBalance {
   campaign_id: number | null;
-  revenue: number; // completed orders only
+  revenue: number; // orders whose items are all done
   expenses: number; // zero or negative
   additions: number; // zero or positive
 }

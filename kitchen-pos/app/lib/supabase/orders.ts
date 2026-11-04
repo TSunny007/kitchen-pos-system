@@ -49,6 +49,13 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
   // we store are the same expression rather than two that agree today.
   const subtotal = cartTotal(items);
 
+  // Items flagged no_prep_needed are born "done" (step 2). An order made only
+  // of those has nothing left for the kitchen to do, so no later write would
+  // ever roll it up to "completed" - it has to start that way. Any other order
+  // starts "new" and is rolled up by updateOrderStatusFromItems as it's worked.
+  const bornDone = (cartItem: CartItem) => cartItem.item.no_prep_needed;
+  const needsNoKitchen = items.length > 0 && items.every(bornDone);
+
   // 1. Create the order
   const { data: order, error: orderError } = await supabase
     .from("orders")
@@ -57,7 +64,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
       customer_name,
       notes: notes || null,
       subtotal,
-      status: "new" as OrderStatus,
+      status: (needsNoKitchen ? "completed" : "new") as OrderStatus,
     })
     .select()
     .single();
@@ -69,7 +76,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
 
   // 2. Create order items - FLATTENED: one row per unit (quantity is always 1)
   // This allows individual items to be checked off in the kitchen, even with different modifiers
-  // Items with no_prep_needed=true are created with status 'done' (ready immediately)
+  // Items that are born done are created with status 'done' (ready immediately)
   const orderItemsToInsert: Array<{
     order_id: number;
     item_id: number;
@@ -89,7 +96,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
         item_id: cartItem.item.id,
         quantity: 1, // Always 1 for flattened items
         notes: cartItem.notes || null,
-        status: (cartItem.item.no_prep_needed ? "done" : "new") as OrderItemStatus,
+        status: (bornDone(cartItem) ? "done" : "new") as OrderItemStatus,
       });
       cartItemIndexMap.push(cartIndex);
     }
@@ -147,7 +154,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     return {
       order_item_id: orderItem.id,
       old_status: null,
-      new_status: items[cartIndex].item.no_prep_needed ? "done" : "new",
+      new_status: bornDone(items[cartIndex]) ? "done" : "new",
     };
   });
 
