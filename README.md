@@ -134,8 +134,8 @@ Revenue comes from your orders; everything else is a line item you enter.
 - **Revenue** counts an order once every item on it is done, ignoring cancelled
   items. It trails the kitchen by design: an order that's still being made
   isn't revenue yet. It's judged from the items rather than the order's own
-  status, which can lag: an order made only of no-prep items is born with
-  everything done but is never marked completed.
+  status label, so it doesn't depend on every code path keeping that label in
+  step.
 - **Expenses and additions** are entries you add by hand — groceries and
   supplies on one side, tips and donations on the other. They're stored as one
   signed amount (negative is an expense), so **net = revenue + expenses +

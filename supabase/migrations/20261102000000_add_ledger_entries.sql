@@ -61,9 +61,10 @@ create policy "Allow authenticated users to delete ledger_entries"
 -- Revenue counts an order once every item on it that was not cancelled is done
 -- (the rule updateOrderStatusFromItems() uses to call an order 'completed'),
 -- priced the way lineTotal() prices a cart line. The orders.status label is not
--- trusted for this: createOrder() inserts an order whose items all need no prep
--- as 'new' with every item already 'done', and nothing ever advances it, so a
--- campaign selling mostly such items showed a fraction of what it had taken.
+-- relied on for this: createOrder() used to insert an order whose items all need
+-- no prep as 'new' with every item already 'done', and nothing ever advanced it,
+-- so a campaign selling mostly such items showed a fraction of what it had taken.
+-- Reading the items keeps the total right whatever state that label is in.
 -- Revenue is likewise computed from order_items rather than read from
 -- orders.subtotal because nothing recalculates the subtotal when an item is
 -- cancelled, and recalculateOrderSubtotal() counts cancelled items; a stored
