@@ -315,9 +315,9 @@ export default function BalanceSheetPage() {
             )}
 
             <p className="mt-4 text-xs text-on-surface-variant">
-              Revenue counts completed orders only, so it trails the kitchen
-              until orders are marked done. Expenses and additions are the
-              entries added here.
+              Revenue counts an order once every item on it is done, so it
+              trails the kitchen until the last item goes out. Expenses and
+              additions are the entries added here.
             </p>
           </section>
         </div>

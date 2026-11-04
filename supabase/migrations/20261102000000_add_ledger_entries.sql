@@ -58,12 +58,16 @@ create policy "Allow authenticated users to delete ledger_entries"
 -- organisation's total - there is no org table, because there is one
 -- deployment per organisation.
 --
--- Revenue counts completed orders only, and within them every item that was not
--- cancelled, priced the way lineTotal() prices a cart line. It is computed from
--- order_items rather than read from orders.subtotal because nothing
--- recalculates the subtotal when an item is cancelled, and
--- recalculateOrderSubtotal() counts cancelled items; a stored figure would
--- overstate revenue for any order that had one.
+-- Revenue counts an order once every item on it that was not cancelled is done
+-- (the rule updateOrderStatusFromItems() uses to call an order 'completed'),
+-- priced the way lineTotal() prices a cart line. The orders.status label is not
+-- trusted for this: createOrder() inserts an order whose items all need no prep
+-- as 'new' with every item already 'done', and nothing ever advances it, so a
+-- campaign selling mostly such items showed a fraction of what it had taken.
+-- Revenue is likewise computed from order_items rather than read from
+-- orders.subtotal because nothing recalculates the subtotal when an item is
+-- cancelled, and recalculateOrderSubtotal() counts cancelled items; a stored
+-- figure would overstate revenue for any order that had one.
 --
 -- Known trade-off: order_items stores no price, so each line is priced at
 -- items.base_price as it is *now*, and editing a base price later would restate
@@ -96,7 +100,12 @@ with revenue as (
     from public.order_item_modifiers
     where order_item_id = oi.id
   ) m on true
-  where o.status = 'completed'
+  where o.status <> 'cancelled'
+    and not exists (
+      select 1 from public.order_items unfinished
+      where unfinished.order_id = o.id
+        and unfinished.status not in ('done', 'cancelled')
+    )
   group by o.campaign_id
 ),
 ledger as (
