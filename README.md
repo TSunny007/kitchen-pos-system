@@ -14,6 +14,9 @@ row-level security doing the access control.
   in real time across every screen.
 - **Campaigns** — scope a menu to an event or a service period, with optional
   per-item stock counts that mark things sold out as they run down.
+- **Balance Sheet** — revenue, expenses and net profit per campaign and across
+  all of them. Add groceries and other costs as line items, and additions like
+  tips. See [the balance sheet](#the-balance-sheet).
 
 ---
 
@@ -95,7 +98,7 @@ app runs on a two-line `.env.local`. The full annotated list lives in
 
 [`kitchen-pos/app/config/tenant.ts`](kitchen-pos/app/config/tenant.ts) is the
 single module that reads the environment, and it also holds the strings a fork
-changes once and forgets: the app name and description, and the two station
+changes once and forgets: the app name and description, and the three station
 labels. If "Order Terminal" and "Kitchen Display" should read "Front Counter"
 and "The Pass", that's one edit there and nowhere else.
 
@@ -121,6 +124,39 @@ Typography is a local webfont — see
 [`kitchen-pos/public/fonts/README.md`](kitchen-pos/public/fonts/README.md) for
 swapping it, including the licensing catch of committing a font to a public
 fork.
+
+---
+
+## The balance sheet
+
+Revenue comes from your orders; everything else is a line item you enter.
+
+- **Revenue** counts *completed* orders only, and within them every item that
+  wasn't cancelled. It trails the kitchen by design: an order that's still
+  being made isn't revenue yet.
+- **Expenses and additions** are entries you add by hand — groceries and
+  supplies on one side, tips and donations on the other. They're stored as one
+  signed amount (negative is an expense), so **net = revenue + expenses +
+  additions**. Each can name a **person** — who paid, or whose tip it was —
+  typed freely or picked from the names already used.
+- **Campaign is optional on an entry.** One tied to a campaign counts toward
+  that campaign's net; one left untied (a bulk grocery run covering several
+  events) counts toward the organisation total only. There is no org table to
+  attach it to — one deployment is one organisation, so the "organisation
+  total" is just everything in the database.
+- Deleting a campaign never deletes its money: its entries and orders move to
+  "Not tied to a campaign" and the total doesn't change.
+
+The totals come from a database view (`campaign_balance`) instead of being
+added up in the browser, because Supabase's API silently truncates a response
+at 1,000 rows and a busy deployment would pass that without any error.
+
+**Who can see it:** anyone who can sign in. The app has no roles — every
+account can use every station — so a counter volunteer's login shows your
+finances too. Only create accounts for people you'd show the numbers to.
+Restricting it properly would mean introducing roles and enforcing them in the
+RLS policies; hiding the page in the UI wouldn't help, since the data is
+readable through the API.
 
 ---
 
@@ -191,6 +227,7 @@ kitchen-pos/            Next.js app (this is the Vercel project root)
   app/lib/supabase/       data access, one module per table group
   app/terminal/           order-taking station
   app/kitchen/            kitchen display station
+  app/balance-sheet/      revenue, expenses and net profit
   app/globals.css         design tokens; BRAND block at the top
 supabase/
   migrations/             ordered schema history

@@ -19,6 +19,17 @@ export {
   updateCampaign,
 } from "./campaigns";
 
+// Re-export balance sheet functions
+export {
+  getCampaignBalances,
+  getLedgerEntries,
+  getLedgerPeople,
+  createLedgerEntry,
+  updateLedgerEntry,
+  deleteLedgerEntry,
+} from "./ledger";
+export type { LedgerEntryInput } from "./ledger";
+
 // Re-export category functions
 export {
   getCategories,

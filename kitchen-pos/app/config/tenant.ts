@@ -111,7 +111,7 @@ export const tenant = {
   documentLanguage: "en",
 
   /**
-   * The two workstations the app presents. Renaming one is the most common
+   * The workstations the app presents. Renaming one is the most common
    * wording change a new deployment makes ("Front Counter", "Pass", "Bar"), so
    * the in-station header is derived from the title rather than repeating it —
    * one edit here changes both the landing card and the header.
@@ -119,5 +119,6 @@ export const tenant = {
   stations: {
     terminal: station("Order Terminal", "Take customer orders and manage the queue"),
     kitchen: station("Kitchen Display", "View and manage order preparation"),
+    balanceSheet: station("Balance Sheet", "Track expenses and net profit across campaigns"),
   },
 };
